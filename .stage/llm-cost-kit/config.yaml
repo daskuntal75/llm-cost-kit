@@ -1,0 +1,132 @@
+# llm-cost-kit — Configuration
+# ─────────────────────────────────────────────────────────────────────────────
+# This is the ONE file you edit. The setup wizard and all platform adapters
+# read from here. Uncomment the platforms you use and fill in your contexts.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── Platforms ────────────────────────────────────────────────────────────────
+# Uncomment every platform you actively use.
+# The setup wizard will only run the adapters for enabled platforms.
+
+platforms:
+  enabled:
+    - claude          # Claude Chat · Claude Code · Cowork (Anthropic)
+    # - openai        # ChatGPT · Custom GPTs · OpenAI API
+    # - gemini        # Gemini Advanced · Gems · Google AI Studio
+
+
+# ── Universal Response Preferences ──────────────────────────────────────────
+# These rules apply to all platforms and get baked into every system prompt
+# and project instruction file the setup generates.
+
+response_style:
+  lead_with_answer: true          # Answer first, reasoning after
+  no_openers: true                # No "Great!", "Sure!", "Certainly!"
+  no_closers: true                # No "Let me know if you need anything!"
+  tables_over_prose: true         # Tables for comparisons, not prose
+  one_recommendation: true        # One recommendation, not a menu of options
+  answer_yes_no_first: true       # For binary questions, answer before explaining
+
+
+# ── Output Token Budgets ─────────────────────────────────────────────────────
+# These are soft limits — they guide the LLM to stay concise per task type.
+# Increase if your work genuinely needs more; decrease to tighten further.
+
+token_budgets:
+  quick: 300          # Single Q&A, fact lookup, short command
+  deep_work: 800      # Multi-turn analysis, strategy, planning
+  build: 1200         # Code gen, agentic tasks, multi-file edits
+  research: 600       # Web search synthesis, competitive research
+  escalate: 1000      # Reserved for top-tier model escalations
+
+
+# ── Model Routing ────────────────────────────────────────────────────────────
+# Per-platform routing hierarchy.
+# Rule: default handles 90%+ of tasks. Sub-tasks route cheap work to small
+# models. Escalate ONLY after the default model fails twice on the same task.
+# Never auto-escalate — always require proof of failure first.
+
+model_routing:
+
+  claude:
+    default: claude-sonnet-4-6                 # Fast, capable, ~90% of tasks
+    sub_tasks: claude-haiku-4-5-20251001       # Cheap: classification, transforms, formatting
+    escalate: claude-opus-4-6                  # Only after 2 Sonnet failures
+    escalate_policy: "2 failures on same task, same session"
+
+  openai:
+    default: gpt-4o                            # Balanced: speed + capability
+    sub_tasks: gpt-4o-mini                     # Very cheap: simple tasks, high-volume
+    escalate: o3                               # Only for hard multi-step reasoning
+    escalate_policy: "2 gpt-4o failures OR explicitly reasoning-heavy task"
+    # Note: o1/o3 charge per reasoning token — use sparingly
+
+  gemini:
+    default: gemini-2.0-flash                  # Fast and cheap daily driver
+    sub_tasks: gemini-1.5-flash-8b             # Minimal cost sub-tasks
+    escalate: gemini-2.5-pro                   # Complex reasoning and long context
+    escalate_policy: "2 flash failures OR task requires >500K context window"
+
+
+# ── Session Hygiene Thresholds ───────────────────────────────────────────────
+# Used by the SKILL / system prompt nudge logic.
+# These thresholds are universal across all platforms.
+
+session_hygiene:
+  turn_warning: 12              # Append context-cost nudge at this turn number
+  turn_reset: 15                # Mandatory summarize + reset at this turn
+  summary_max_words: 150        # Hard cap on handoff summary length
+  idle_threshold_minutes: 5     # Claude Code only: /clear beats /compact after this
+
+
+# ── Billing Guardrails ───────────────────────────────────────────────────────
+# The setup wizard uses these to configure billing reminders and alerts.
+
+billing:
+  auto_reload: false            # ALWAYS keep off — manual top-ups only
+  monthly_review_day: 1         # Day of month to review usage (LaunchAgent fires this)
+  alert_balance_below: 50       # Alert threshold in $USD for pre-paid credit balances
+
+
+# ── Your Project Contexts ────────────────────────────────────────────────────
+# Define your work contexts here. The setup wizard generates:
+# - Context-scoped shell aliases (claude-saas, claude-work, etc.)
+# - MCP / tool configs per context
+# - Project instruction templates for Claude Projects, ChatGPT Projects, Gems
+#
+# Replace the examples below with your actual project contexts.
+# Keep descriptions under 2 sentences — they appear in generated instructions.
+
+contexts:
+
+  - name: "SaaS Project"
+    alias: saas
+    description: "[Your SaaS or app project — e.g. 'Production Next.js app on GCP with Supabase']"
+    tools:
+      claude: [supabase, stripe, github]
+      openai: [code_interpreter, function_calling]
+      gemini: [google_drive, github]
+
+  - name: "Work Tasks"
+    alias: work
+    description: "[Work productivity context — e.g. 'Job search, scheduling, email triage']"
+    tools:
+      claude: [google-calendar, gmail]
+      openai: []                              # ChatGPT has native calendar/email browsing
+      gemini: [google_calendar, gmail]        # Native Workspace integration
+
+  - name: "AI Infrastructure"
+    alias: infra
+    description: "[AI agent projects and infrastructure — e.g. 'Python agents, LLM pipelines']"
+    tools:
+      claude: [github]
+      openai: [function_calling, code_interpreter]
+      gemini: [github, google_colab]
+
+  - name: "Default"
+    alias: default
+    description: "General purpose sessions — no tools loaded"
+    tools:
+      claude: []
+      openai: []
+      gemini: []

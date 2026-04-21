@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "google-calendar": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-google-calendar@latest"],
+      "env": {
+        "GOOGLE_OAUTH_TOKEN": "${GOOGLE_OAUTH_TOKEN}"
+      }
+    },
+    "gmail": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-gmail@latest"],
+      "env": {
+        "GOOGLE_OAUTH_TOKEN": "${GOOGLE_OAUTH_TOKEN}"
+      }
+    }
+  }
+}
