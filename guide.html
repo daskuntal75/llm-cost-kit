@@ -3,616 +3,379 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LLM Cost Kit — Cut AI costs 40–70%</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<title>LLM Cost Kit v3.2 — Guide</title>
 <style>
-  :root {
-    --bg: #0b0d12; --surface: #13161e; --surface2: #1a1f2e; --border: #252a3a;
-    --amber: #f59e0b; --amber-dim: #92640a; --amber-glow: rgba(245,158,11,0.10);
-    --blue: #60a5fa; --teal: #2dd4bf; --violet: #a78bfa; --green: #4ade80; --red: #f87171;
-    --text: #e2e8f0; --text-muted: #64748b; --text-dim: #94a3b8;
-    --radius: 8px; --radius-lg: 16px;
-    /* Platform colors */
-    --claude: #da7756; --openai: #10a37f; --gemini: #4285f4;
-    --claude-glow: rgba(218,119,86,0.10);
-    --openai-glow: rgba(16,163,127,0.10);
-    --gemini-glow: rgba(66,133,244,0.10);
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    line-height: 1.65;
+    color: #2c3e50;
+    background: #fafbfc;
+    padding: 60px 20px;
+    -webkit-font-smoothing: antialiased;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  html { scroll-behavior: smooth; }
-  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); line-height: 1.65; font-size: 16px; overflow-x: hidden; }
-  body::before { content: ''; position: fixed; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E"); pointer-events: none; z-index: 9999; opacity: 0.35; }
-  .container { max-width: 880px; margin: 0 auto; padding: 0 24px; }
-  section { padding: 80px 0; }
-  section + section { border-top: 1px solid var(--border); }
-  h1, h2, h3, h4 { font-family: 'Syne', sans-serif; font-weight: 800; line-height: 1.1; }
-  h1 { font-size: clamp(2.4rem, 6vw, 4rem); letter-spacing: -0.03em; }
-  h2 { font-size: clamp(1.6rem, 4vw, 2.2rem); letter-spacing: -0.02em; margin-bottom: 16px; }
-  h3 { font-size: 1.1rem; letter-spacing: -0.01em; margin-bottom: 8px; }
-  h4 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--amber); margin-bottom: 20px; font-weight: 700; }
-  p { color: var(--text-dim); margin-bottom: 16px; } p:last-child { margin-bottom: 0; }
-  a { color: var(--amber); text-decoration: none; } a:hover { text-decoration: underline; }
-  strong { color: var(--text); font-weight: 500; }
-  code { font-family: 'JetBrains Mono', monospace; font-size: 0.8em; background: var(--surface2); border: 1px solid var(--border); padding: 2px 6px; border-radius: 4px; color: var(--teal); }
-
-  /* Nav */
-  nav { position: sticky; top: 0; z-index: 100; background: rgba(11,13,18,0.92); backdrop-filter: blur(12px); border-bottom: 1px solid var(--border); padding: 14px 24px; }
-  .nav-inner { max-width: 1100px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
-  .nav-logo { font-family: 'Syne', sans-serif; font-weight: 800; font-size: 1rem; display: flex; align-items: center; gap: 8px; color: var(--text); text-decoration: none; }
-  .nav-logo .dot { color: var(--amber); }
-  .nav-links { display: flex; gap: 24px; list-style: none; }
-  .nav-links a { font-size: 0.85rem; color: var(--text-muted); font-weight: 500; transition: color 0.2s; }
-  .nav-links a:hover { color: var(--text); text-decoration: none; }
-  .nav-cta { font-family: 'Syne', sans-serif; font-size: 0.82rem; font-weight: 700; padding: 7px 16px; background: var(--amber); color: #000; border-radius: var(--radius); text-decoration: none; }
-  .nav-cta:hover { opacity: 0.88; text-decoration: none; }
-
-  /* Hero */
-  .hero { padding: 100px 0 80px; position: relative; overflow: hidden; border-bottom: 1px solid var(--border); }
-  .hero::before { content: ''; position: absolute; top: -200px; right: -200px; width: 700px; height: 700px; background: radial-gradient(circle, rgba(245,158,11,0.05) 0%, transparent 70%); pointer-events: none; }
-  .hero-eyebrow { display: inline-flex; align-items: center; gap: 8px; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; color: var(--amber); background: var(--amber-glow); border: 1px solid rgba(245,158,11,0.25); padding: 4px 12px; border-radius: 100px; margin-bottom: 28px; }
-  .pulse { width: 6px; height: 6px; background: var(--amber); border-radius: 50%; animation: pulse 2s infinite; }
-  @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
-  .hero h1 em { font-style: normal; color: var(--amber); }
-  .hero-sub { font-size: 1.1rem; color: var(--text-dim); font-weight: 300; max-width: 600px; margin-bottom: 40px; line-height: 1.7; }
-  .hero-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 56px; }
-  .btn-primary { display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; background: var(--amber); color: #000; font-family: 'Syne', sans-serif; font-weight: 700; font-size: 0.9rem; border-radius: var(--radius); text-decoration: none; transition: all .2s; }
-  .btn-primary:hover { opacity: .88; text-decoration: none; transform: translateY(-1px); }
-  .btn-secondary { display: inline-flex; align-items: center; gap: 8px; padding: 12px 24px; background: transparent; color: var(--text); font-family: 'Syne', sans-serif; font-weight: 600; font-size: 0.9rem; border: 1px solid var(--border); border-radius: var(--radius); text-decoration: none; transition: all .2s; }
-  .btn-secondary:hover { background: var(--surface); text-decoration: none; }
-
-  /* Platform badges in hero */
-  .platform-badges { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 48px; }
-  .badge { display: inline-flex; align-items: center; gap: 7px; padding: 6px 14px; border-radius: 100px; font-family: 'Syne', sans-serif; font-size: 0.8rem; font-weight: 700; border: 1px solid; }
-  .badge-claude { background: var(--claude-glow); color: var(--claude); border-color: rgba(218,119,86,0.3); }
-  .badge-openai { background: var(--openai-glow); color: var(--openai); border-color: rgba(16,163,127,0.3); }
-  .badge-gemini { background: var(--gemini-glow); color: var(--gemini); border-color: rgba(66,133,244,0.3); }
-
-  /* Stats */
-  .stats-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden; }
-  .stat { background: var(--surface); padding: 24px 28px; }
-  .stat-value { font-family: 'Syne', sans-serif; font-size: 2.2rem; font-weight: 800; letter-spacing: -0.04em; color: var(--amber); line-height: 1; margin-bottom: 6px; }
-  .stat-label { font-size: 0.82rem; color: var(--text-muted); }
-
-  /* Platform selector */
-  .platform-selector { display: flex; gap: 6px; margin-bottom: 28px; flex-wrap: wrap; }
-  .psel-btn { font-family: 'Syne', sans-serif; font-size: 0.82rem; font-weight: 700; padding: 8px 18px; border-radius: var(--radius); border: 1px solid var(--border); background: var(--surface); color: var(--text-muted); cursor: pointer; transition: all .2s; }
-  .psel-btn[data-p="claude"].active { background: var(--claude-glow); color: var(--claude); border-color: rgba(218,119,86,0.4); }
-  .psel-btn[data-p="openai"].active { background: var(--openai-glow); color: var(--openai); border-color: rgba(16,163,127,0.4); }
-  .psel-btn[data-p="gemini"].active { background: var(--gemini-glow); color: var(--gemini); border-color: rgba(66,133,244,0.4); }
-  .psel-btn[data-p="all"].active { background: var(--amber-glow); color: var(--amber); border-color: rgba(245,158,11,0.4); }
-  .platform-note { display: none; font-size: 0.82rem; color: var(--text-muted); padding: 10px 14px; background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border); margin-bottom: 20px; }
-  .platform-note.visible { display: block; }
-
-  /* Concept map */
-  .concept-table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-top: 32px; }
-  .concept-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
-  .concept-table th { padding: 10px 14px; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; border-bottom: 1px solid var(--border); background: var(--surface2); }
-  .concept-table th:nth-child(2) { color: var(--claude); }
-  .concept-table th:nth-child(3) { color: var(--openai); }
-  .concept-table th:nth-child(4) { color: var(--gemini); }
-  .concept-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); color: var(--text-dim); vertical-align: top; }
-  .concept-table tr:last-child td { border-bottom: none; }
-  .concept-table tr:hover td { background: rgba(255,255,255,0.02); }
-  .concept-table td:first-child { color: var(--text-muted); font-weight: 500; font-size: 0.78rem; }
-  .mono { font-family: 'JetBrains Mono', monospace; font-size: 0.76em; }
-
-  /* Code blocks */
-  .code-block { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin: 16px 0; overflow: hidden; }
-  .code-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--surface2); }
-  .code-lang { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; }
-  .copy-btn { font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; color: var(--text-muted); background: none; border: 1px solid var(--border); padding: 4px 10px; border-radius: 4px; cursor: pointer; transition: all .2s; }
-  .copy-btn:hover { color: var(--amber); border-color: var(--amber-dim); }
-  .copy-btn.copied { color: var(--green); border-color: rgba(74,222,128,.3); }
-  pre { font-family: 'JetBrains Mono', monospace; font-size: 0.82rem; line-height: 1.7; padding: 18px 20px; overflow-x: auto; color: #c9d1d9; }
-  .kw{color:#ff7b72}.str{color:#a5d6ff}.cm{color:var(--text-muted);font-style:italic}.tl{color:var(--teal)}.am{color:var(--amber)}.vl{color:#d2a8ff}
-
-  /* Tabs */
-  .tab-list { display: flex; gap: 4px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
-  .tab-btn { font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; padding: 10px 16px; background: none; border: none; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: all .15s; }
-  .tab-btn:hover { color: var(--text); }
-  .tab-btn.active { color: var(--amber); border-bottom-color: var(--amber); }
-  .tab-panel { display: none; } .tab-panel.active { display: block; }
-
-  /* Steps */
-  .step { display: flex; gap: 24px; padding: 28px 0; border-bottom: 1px solid var(--border); }
-  .step:last-child { border-bottom: none; }
-  .step-num { font-family: 'Syne', sans-serif; font-size: 0.78rem; font-weight: 800; color: var(--amber); background: var(--amber-glow); border: 1px solid rgba(245,158,11,.2); width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; border-radius: 50%; flex-shrink: 0; }
-  .step-content { flex: 1; } .step-content h3 { margin-bottom: 8px; } .step-content p { font-size: .87rem; margin-bottom: 10px; }
-  .step-tag { display: inline-block; font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; padding: 2px 8px; border-radius: 100px; margin-bottom: 8px; }
-  .tag-auto { background: rgba(74,222,128,.1); color: var(--green); border: 1px solid rgba(74,222,128,.2); }
-  .tag-manual { background: rgba(248,113,113,.1); color: var(--red); border: 1px solid rgba(248,113,113,.2); }
-  .tag-once { background: rgba(96,165,250,.1); color: var(--blue); border: 1px solid rgba(96,165,250,.2); }
-
-  /* Alerts */
-  .alert { border-radius: var(--radius); padding: 12px 16px; margin: 12px 0; font-size: .85rem; display: flex; gap: 10px; }
-  .alert-warn { background: rgba(245,158,11,.07); border: 1px solid rgba(245,158,11,.18); color: var(--text-dim); }
-  .alert-info { background: rgba(96,165,250,.05); border: 1px solid rgba(96,165,250,.14); color: var(--text-dim); }
-
-  /* Platform-tinted cards */
-  .platform-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 22px 24px; margin-bottom: 10px; }
-  .platform-card.claude { border-top: 2px solid var(--claude); }
-  .platform-card.openai { border-top: 2px solid var(--openai); }
-  .platform-card.gemini { border-top: 2px solid var(--gemini); }
-  .platform-card-label { font-family: 'Syne', sans-serif; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 10px; }
-  .label-claude { color: var(--claude); }
-  .label-openai { color: var(--openai); }
-  .label-gemini { color: var(--gemini); }
-  .platform-card p { font-size: .85rem; }
-
-  /* Ref table */
-  .ref-table-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
-  .ref-table { width: 100%; border-collapse: collapse; font-size: .84rem; }
-  .ref-table th { text-align: left; padding: 10px 16px; font-family: 'JetBrains Mono', monospace; font-size: .7rem; text-transform: uppercase; letter-spacing: .08em; color: var(--text-muted); border-bottom: 1px solid var(--border); background: var(--surface2); }
-  .ref-table td { padding: 11px 16px; border-bottom: 1px solid var(--border); color: var(--text-dim); vertical-align: top; }
-  .ref-table tr:last-child td { border-bottom: none; }
-  .ref-table tr:hover td { background: rgba(255,255,255,.02); }
-  .ref-table td:first-child { font-family: 'JetBrains Mono', monospace; font-size: .78rem; color: var(--teal); }
-
-  /* Layer viz */
-  .layer { display: flex; align-items: center; gap: 16px; padding: 16px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); margin-bottom: 8px; transition: all .2s; }
-  .layer:hover { border-color: var(--amber-dim); }
-  .layer-num { font-family: 'Syne', sans-serif; font-size: 1.4rem; font-weight: 800; color: var(--amber); opacity: .35; min-width: 28px; }
-  .layer-name { font-family: 'Syne', sans-serif; font-weight: 700; font-size: .92rem; color: var(--text); margin-bottom: 3px; }
-  .layer-desc { font-size: .8rem; color: var(--text-muted); }
-  .layer-file { font-family: 'JetBrains Mono', monospace; font-size: .7rem; color: var(--teal); background: rgba(45,212,191,.06); border: 1px solid rgba(45,212,191,.14); padding: 3px 9px; border-radius: 4px; white-space: nowrap; }
-
-  /* Reveal */
-  .reveal { opacity: 0; transform: translateY(18px); transition: all .5s ease; }
-  .reveal.visible { opacity: 1; transform: none; }
-
-  /* Footer */
-  footer { padding: 60px 0; border-top: 1px solid var(--border); text-align: center; }
-  .divider { width: 48px; height: 2px; background: var(--amber); margin: 0 auto 32px; border-radius: 2px; }
-  .footer-links { display: flex; justify-content: center; gap: 24px; margin-top: 32px; flex-wrap: wrap; }
-  .footer-links a { font-size: .82rem; color: var(--text-muted); }
-  .footer-links a:hover { color: var(--text); }
-
-  @media(max-width:640px) { .stats-bar { grid-template-columns: 1fr; } .nav-links { display: none; } h1 { font-size: 2.1rem; } .concept-table { font-size: .72rem; } }
+  .container {
+    max-width: 860px;
+    margin: 0 auto;
+    background: #ffffff;
+    border-radius: 12px;
+    padding: 50px 50px;
+    box-shadow: 0 2px 16px rgba(0, 0, 0, 0.06);
+  }
+  h1 {
+    font-size: 36px; font-weight: 700;
+    margin: 0 0 8px 0; color: #1a1a2e;
+    letter-spacing: -0.02em;
+  }
+  .subtitle {
+    font-size: 18px; color: #6b7280;
+    margin: 0 0 40px 0; font-weight: 400;
+  }
+  h2 {
+    font-size: 24px; font-weight: 600;
+    margin: 48px 0 16px 0; color: #1a1a2e;
+    letter-spacing: -0.01em;
+    padding-bottom: 8px;
+    border-bottom: 2px solid #e5e7eb;
+  }
+  h3 {
+    font-size: 18px; font-weight: 600;
+    margin: 32px 0 12px 0; color: #2c3e50;
+  }
+  p { margin: 0 0 16px 0; }
+  code {
+    font-family: "SF Mono", Menlo, Consolas, monospace;
+    background: #f4f5f7; padding: 2px 6px;
+    border-radius: 4px; font-size: 13.5px;
+    color: #c2185b;
+  }
+  pre {
+    background: #f8f9fa;
+    border-left: 4px solid #0d6efd;
+    padding: 16px 20px; border-radius: 6px;
+    overflow-x: auto; margin: 16px 0;
+    font-size: 13.5px; line-height: 1.55;
+  }
+  pre code { background: none; padding: 0; color: #2c3e50; font-size: 13.5px; }
+  table { border-collapse: collapse; width: 100%; margin: 16px 0; font-size: 14.5px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid #e5e7eb; }
+  th { background: #f4f5f7; font-weight: 600; color: #374151; }
+  tr:hover { background: #fafbfc; }
+  ul, ol { margin: 0 0 16px 0; padding-left: 24px; }
+  li { margin: 6px 0; }
+  blockquote {
+    border-left: 4px solid #0d6efd; background: #f0f8ff;
+    padding: 14px 20px; margin: 20px 0;
+    color: #1e3a5f; border-radius: 0 6px 6px 0;
+  }
+  .toc {
+    background: #f8f9fa; padding: 20px 24px;
+    border-radius: 8px; margin: 24px 0 40px 0;
+    border-left: 4px solid #0d6efd;
+  }
+  .toc h3 { margin-top: 0; color: #1a1a2e; }
+  .toc ul { margin: 0; padding-left: 20px; }
+  .toc a { color: #0d6efd; text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .diagram-container {
+    margin: 24px 0; padding: 20px;
+    background: #fafbfc; border-radius: 8px;
+    border: 1px solid #e5e7eb;
+  }
+  .diagram-container svg { display: block; margin: 0 auto; }
+  .diagram-caption {
+    text-align: center; font-size: 13px;
+    color: #6b7280; margin-top: 12px;
+    font-style: italic;
+  }
+  hr { border: none; border-top: 1px solid #e5e7eb; margin: 40px 0; }
+  .footer {
+    margin-top: 60px; padding-top: 24px;
+    border-top: 1px solid #e5e7eb;
+    text-align: center; color: #9ca3af; font-size: 13px;
+  }
+  @media (max-width: 700px) {
+    body { padding: 24px 12px; }
+    .container { padding: 28px 24px; }
+    h1 { font-size: 28px; }
+    h2 { font-size: 20px; }
+  }
 </style>
 </head>
 <body>
+<div class="container">
 
-<!-- NAV -->
-<nav>
-  <div class="nav-inner">
-    <a href="#" class="nav-logo">llm-cost-kit<span class="dot">.</span></a>
-    <ul class="nav-links">
-      <li><a href="#principles">Principles</a></li>
-      <li><a href="#mapping">Platform Map</a></li>
-      <li><a href="#setup">Setup</a></li>
-      <li><a href="#snippets">Snippets</a></li>
-      <li><a href="#reference">Reference</a></li>
-    </ul>
-    <a href="#setup" class="nav-cta">Get Started →</a>
-  </div>
-</nav>
+<h1>LLM Cost Kit v3.2</h1>
+<p class="subtitle">40–70% cost reduction for Claude, ChatGPT, and Gemini — without quality loss.</p>
 
-<!-- HERO -->
-<div class="hero">
-  <div class="container">
-    <div class="hero-eyebrow"><span class="pulse"></span>Open-source · Platform-agnostic</div>
-    <h1>Cut LLM costs<br><em>40–70%</em> without<br>losing quality.</h1>
-    <p class="hero-sub">One toolkit. Three platforms. Eight universal principles. Configure once in <code>config.yaml</code> — the same waste patterns exist everywhere.</p>
-    <div class="platform-badges">
-      <span class="badge badge-claude">◆ Claude</span>
-      <span class="badge badge-openai">◆ ChatGPT</span>
-      <span class="badge badge-gemini">◆ Gemini</span>
-    </div>
-    <div class="hero-actions">
-      <a href="#setup" class="btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12h14M12 5l7 7-7 7"/></svg> Set it up</a>
-      <a href="#mapping" class="btn-secondary">Platform map →</a>
-    </div>
-    <div class="stats-bar reveal">
-      <div class="stat"><div class="stat-value">40–70%</div><div class="stat-label">Token reduction target</div></div>
-      <div class="stat"><div class="stat-value">1</div><div class="stat-label">config.yaml to edit</div></div>
-      <div class="stat"><div class="stat-value">~18K</div><div class="stat-label">Tokens per unused tool per message</div></div>
-    </div>
-  </div>
+<div class="toc">
+<h3>Contents</h3>
+<ul>
+<li><a href="#what-changed">What's new in v3.2</a></li>
+<li><a href="#hierarchy">The 7-layer hierarchy</a></li>
+<li><a href="#decision-tree">Decision tree — where should this rule go?</a></li>
+<li><a href="#quick-start">Quick start (Claude)</a></li>
+<li><a href="#quick-start-other">Quick start (OpenAI / Gemini)</a></li>
+<li><a href="#routing">Model + effort routing</a></li>
+<li><a href="#auto-sync">Auto-sync architecture</a></li>
+<li><a href="#savings">What you'll save</a></li>
+<li><a href="#license">License</a></li>
+</ul>
 </div>
 
-<!-- PRINCIPLES -->
-<section id="principles">
-  <div class="container">
-    <h4>The Foundation</h4>
-    <h2>8 principles that apply on every platform.</h2>
-    <p>The same waste patterns appear in Claude, ChatGPT, and Gemini. The platform-specific files in this kit are just different implementations of the same ideas.</p>
+<h2 id="what-changed">What's new in v3.2 (vs v3.0)</h2>
 
-    <div style="margin-top:40px;" class="reveal">
-      <div class="layer"><div class="layer-num">1</div><div style="flex:1"><div class="layer-name">Information Density Over Brevity</div><div class="layer-desc">The goal is not short responses — it's responses where every token carries signal. A complete 400-token answer beats a 200-token answer that needs a follow-up, because follow-ups re-send the whole thread.</div></div></div>
-      <div class="layer"><div class="layer-num">2</div><div style="flex:1"><div class="layer-name">Context Is Expensive At Rest</div><div class="layer-desc">Prompt cache hits are cheap. Cache misses are full price. Summarize before switching topics. The smaller the context you carry into a new session, the cheaper every subsequent turn.</div></div></div>
-      <div class="layer"><div class="layer-num">3</div><div style="flex:1"><div class="layer-name">Match Model to Task</div><div class="layer-desc">Most tasks don't require the best model. Route cheap work to small models. Escalate to top-tier only after the default model fails twice on the same task, same session.</div></div></div>
-      <div class="layer"><div class="layer-num">4</div><div style="flex:1"><div class="layer-name">Tools Are Not Free</div><div class="layer-desc">Every tool definition loaded — MCP server, ChatGPT plugin, Gemini extension, API function — adds its full schema to every input message. Load only what the current task will actually call.</div></div></div>
-      <div class="layer"><div class="layer-num">5</div><div style="flex:1"><div class="layer-name">Sub-Agents Need Minimum Viable Context</div><div class="layer-desc">Full conversation passed to N parallel agents = N× the thread cost. Orchestrator holds full state. Sub-agents get a scoped JSON brief with 5 fields.</div></div></div>
-      <div class="layer"><div class="layer-num">6</div><div style="flex:1"><div class="layer-name">Thread Hygiene Is Maintenance, Not Cleanup</div><div class="layer-desc">Letting a thread run to 30 turns is technical debt. Summarize and reset at turn 15 — it costs almost nothing and saves everything important.</div></div></div>
-      <div class="layer"><div class="layer-num">7</div><div style="flex:1"><div class="layer-name">Output Discipline Saves Tokens on Every Response, Forever</div><div class="layer-desc">Setting user preferences once eliminates 20–60 tokens of pure overhead from every response, every conversation, permanently. Highest ROI move in the entire kit.</div></div></div>
-      <div class="layer"><div class="layer-num">8</div><div style="flex:1"><div class="layer-name">Measure, Then Optimize</div><div class="layer-desc">Token optimization without visibility is guessing. Review your usage dashboard on the 1st of each month. Which model drove most cost? Was it justified?</div></div></div>
-    </div>
-  </div>
-</section>
+<table>
+<thead><tr><th>Addition</th><th>Why it matters</th></tr></thead>
+<tbody>
+<tr><td><strong>7-layer hierarchy</strong> (L1–L7)</td><td>Knowing which layer to use for each instruction = the single biggest cost lever.</td></tr>
+<tr><td><strong>Always-on cost tally</strong></td><td>Every response ends with <code>Tokens: ~Xk in / ~Y out · Session: ~$Z.ZZ</code>. Continuous visibility.</td></tr>
+<tr><td><strong>3-skill family</strong></td><td>cost-optimizer, memory-first, status-rollup auto-trigger across Cowork sessions.</td></tr>
+<tr><td><strong>fswatch auto-sync</strong></td><td>Edit any file in skills-source, GitHub has it in ~5 seconds.</td></tr>
+<tr><td><strong>L1/L2/L7 templates</strong></td><td>Copy-paste templates for every layer.</td></tr>
+<tr><td><strong>L3 symlink pattern</strong></td><td>Production app repos no longer carry CLAUDE.md as tracked file.</td></tr>
+</tbody>
+</table>
 
-<!-- PLATFORM MAP -->
-<section id="mapping">
-  <div class="container">
-    <h4>Platform Mapping</h4>
-    <h2>Same concept, different name on every platform.</h2>
-    <p>The toolkit uses Claude's naming as the reference. Here's how each concept translates.</p>
+<h2 id="hierarchy">The 7-layer hierarchy</h2>
 
-    <div class="concept-table-wrap reveal">
-      <table class="concept-table">
-        <thead>
-          <tr>
-            <th style="color:var(--text-muted)">Concept</th>
-            <th>Claude</th>
-            <th>ChatGPT / OpenAI</th>
-            <th>Gemini / Google</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr><td>Project config file</td><td class="mono">CLAUDE.md</td><td>Custom GPT system prompt</td><td>Gem system instructions</td></tr>
-          <tr><td>Persistent context areas</td><td>Claude Projects</td><td>ChatGPT Projects</td><td>Gems</td></tr>
-          <tr><td>Reusable agents</td><td>Cowork Skills</td><td>Custom GPTs</td><td>Gems (each = a named expert)</td></tr>
-          <tr><td>Tool loading mechanism</td><td>MCP servers</td><td>Plugins / API <span class="mono">tools</span> array</td><td>Extensions / API <span class="mono">tools</span></td></tr>
-          <tr><td>Lean session (no tools)</td><td><span class="mono">claude-x</span> alias</td><td>Empty <span class="mono">tools: []</span> in API</td><td>Disable all extensions</td></tr>
-          <tr><td>Context compact</td><td><span class="mono">/compact</span> (within 5 min)</td><td>Manual summarize + new chat</td><td>Manual summarize + new conversation</td></tr>
-          <tr><td>Context clear</td><td><span class="mono">/clear</span></td><td>New chat</td><td>New Gem conversation</td></tr>
-          <tr><td>Cheap / fast model</td><td>Claude Haiku</td><td>gpt-4o-mini</td><td>gemini-1.5-flash-8b</td></tr>
-          <tr><td>Default model</td><td>Claude Sonnet</td><td>gpt-4o</td><td>gemini-2.0-flash</td></tr>
-          <tr><td>Escalation model</td><td>Claude Opus</td><td>o1 / o3</td><td>gemini-2.5-pro</td></tr>
-          <tr><td>Escalation cost warning</td><td>High vs Sonnet</td><td>⚠️ o3 charges reasoning tokens — very expensive</td><td>High vs Flash; 1M context useful but not cheap</td></tr>
-          <tr><td>Persistent memory</td><td>Claude memory system</td><td>ChatGPT built-in memory (prune monthly)</td><td>Gems maintain per-convo history; no cross-session default</td></tr>
-          <tr><td>Token usage reporting</td><td><span class="mono">ccusage</span> CLI</td><td>platform.openai.com/usage</td><td>console.cloud.google.com</td></tr>
-          <tr><td>Output preferences</td><td>Settings → User Preferences</td><td>Settings → Custom Instructions</td><td>Gem instructions / user preferences</td></tr>
-          <tr><td>Sub-agent brief</td><td><span class="mono">agent-brief</span> alias → clipboard</td><td>Scoped <span class="mono">function</span> inputs</td><td>Scoped <span class="mono">function_declarations</span> inputs</td></tr>
-        </tbody>
-      </table>
-    </div>
+<p>The most important concept in this kit. Where you put your instructions matters as much as what they say.</p>
 
-    <div style="margin-top:32px;" class="reveal">
-      <div class="platform-card claude"><div class="platform-card-label label-claude">Claude — Key Differentiator</div><p>The <code>/compact</code> vs <code>/clear</code> timing rule (5-minute cache window) is Claude-specific and the highest-precision cost lever in the kit. On other platforms, manual summarize + new chat is the only mechanism.</p></div>
-      <div class="platform-card openai"><div class="platform-card-label label-openai">OpenAI — Key Differentiator</div><p>o1/o3 reasoning models charge for <em>internal reasoning tokens</em> invisible in the output. A single hard o3 task can cost more than 50 gpt-4o calls. The escalation threshold here is stricter: 2 failures AND the task is genuinely reasoning-heavy.</p></div>
-      <div class="platform-card gemini"><div class="platform-card-label label-gemini">Gemini — Key Differentiator</div><p>1M+ token context windows are real — but long context is not free context on the API. Gems are the native scoping unit (one Gem per context area) which makes project isolation more natural than on the other platforms.</p></div>
-    </div>
-  </div>
-</section>
+<div class="diagram-container">
+<svg width="100%" viewBox="0 0 680 540" xmlns="http://www.w3.org/2000/svg" role="img">
+<title>7-layer instruction hierarchy</title>
+<desc>Layered diagram showing the 7 layers of LLM cost optimization, grouped by load frequency from per-turn (most expensive) to lazy-loaded (cheapest)</desc>
+<style>
+.t-bold { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 14px; font-weight: 500; }
+.t-sub { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 12px; }
+.t-small { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 12px; }
+</style>
 
-<!-- SETUP -->
-<section id="setup">
-  <div class="container">
-    <h4>Setup Guide</h4>
-    <h2>One config file. One wizard. Three platforms.</h2>
+<text class="t-small" x="60" y="32" fill="#5F5E5A">Cost per turn</text>
+<text class="t-small" x="60" y="48" fill="#A32D2D" font-weight="500">High</text>
+<text class="t-small" x="60" y="500" fill="#3B6D11" font-weight="500">Low</text>
+<line x1="100" y1="40" x2="100" y2="495" stroke="#888780" stroke-width="0.5" stroke-dasharray="3 3"/>
+<polygon points="96,495 104,495 100,505" fill="#888780"/>
 
-    <div class="steps reveal">
-      <div class="step">
-        <div class="step-num">1</div>
-        <div class="step-content">
-          <span class="step-tag tag-auto">automated</span>
-          <h3>Edit config.yaml — the only file you need to configure</h3>
-          <p>Open <code>config.yaml</code> and uncomment the platforms you use. Fill in your project contexts. Set your preferences. This is the single source of truth — all platform adapters read from it.</p>
-          <div class="code-block">
-            <div class="code-header"><span class="code-lang">config.yaml — the one file to edit</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-            <pre><span class="cm"># Uncomment the platforms you use:</span>
-platforms:
-  enabled:
-    - claude        <span class="cm"># Claude Chat · Claude Code · Cowork</span>
-    - openai        <span class="cm"># ChatGPT · Custom GPTs · OpenAI API</span>
-    <span class="cm"># - gemini      # Gemini · Gems · Google AI Studio</span>
+<rect x="120" y="40" width="540" height="60" rx="8" fill="#FCEBEB" stroke="#A32D2D" stroke-width="0.5"/>
+<text class="t-bold" x="140" y="62" fill="#791F1F">L1 — Cowork project instructions</text>
+<text class="t-sub" x="140" y="82" fill="#A32D2D">Loads every turn · Cowork only · Keep under 300 words</text>
 
-<span class="cm"># Universal preferences (applied to all platforms):</span>
-response_style:
-  lead_with_answer: true
-  no_openers: true
-  no_closers: true
-  tables_over_prose: true
+<rect x="120" y="115" width="265" height="60" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text class="t-bold" x="140" y="137" fill="#633806">L2 — Cowork global</text>
+<text class="t-sub" x="140" y="157" fill="#854F0B">Once per session · Cowork only</text>
 
-<span class="cm"># Model routing (one entry per platform):</span>
-model_routing:
-  claude:
-    default: claude-sonnet-4-6
-    sub_tasks: claude-haiku-4-5-20251001
-    escalate: claude-opus-4-6
-  openai:
-    default: gpt-4o
-    sub_tasks: gpt-4o-mini
-    escalate: o3</pre>
-          </div>
-        </div>
-      </div>
+<rect x="395" y="115" width="265" height="60" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text class="t-bold" x="415" y="137" fill="#633806">L3 — Code CLAUDE.md</text>
+<text class="t-sub" x="415" y="157" fill="#854F0B">Once per session · Code only</text>
 
-      <div class="step">
-        <div class="step-num">2</div>
-        <div class="step-content">
-          <span class="step-tag tag-auto">automated</span>
-          <h3>Run the unified setup wizard</h3>
-          <p>The wizard reads your <code>config.yaml</code> and runs only the adapters for enabled platforms. Idempotent — safe to re-run after adding a new platform.</p>
-          <div class="code-block">
-            <div class="code-header"><span class="code-lang">shell</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-            <pre>git clone https://github.com/[your-username]/llm-cost-kit.git
-<span class="kw">cd</span> llm-cost-kit
+<rect x="120" y="185" width="540" height="60" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text class="t-bold" x="140" y="207" fill="#633806">L7 — Chat project instructions</text>
+<text class="t-sub" x="140" y="227" fill="#854F0B">Once per session · Chat only</text>
 
-<span class="cm"># Edit config.yaml first, then:</span>
+<rect x="120" y="270" width="540" height="60" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1"/>
+<text class="t-bold" x="140" y="292" fill="#085041">L4 — User Preferences</text>
+<text class="t-sub" x="140" y="312" fill="#0F6E56">Universal across all workspaces · Most efficient layer</text>
+
+<rect x="120" y="345" width="265" height="60" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text class="t-bold" x="140" y="367" fill="#3C3489">L5 — Memory</text>
+<text class="t-sub" x="140" y="387" fill="#534AB7">Auto-injected · System-managed</text>
+
+<rect x="395" y="345" width="265" height="60" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text class="t-bold" x="415" y="367" fill="#3C3489">L6 — Skills</text>
+<text class="t-sub" x="415" y="387" fill="#534AB7">Lazy-loaded · Pay-per-use</text>
+
+<rect x="120" y="430" width="540" height="50" rx="6" fill="none" stroke="#888780" stroke-width="0.5" stroke-dasharray="4 3"/>
+<text class="t-sub" x="140" y="452" font-weight="500" fill="#444441">Decision rule</text>
+<text class="t-sub" x="140" y="470" fill="#5F5E5A">Universal? L4 · Cowork? L1 or L2 · Chat? L7 · Code? L3 · Trigger-based? L6</text>
+</svg>
+<div class="diagram-caption">Layers ordered by cost-per-turn — top is most expensive (reloads every turn), bottom is cheapest (lazy-loaded).</div>
+</div>
+
+<table>
+<thead><tr><th>Layer</th><th>Name</th><th>Workspace</th><th>Loads</th></tr></thead>
+<tbody>
+<tr><td><strong>L1</strong></td><td>Cowork project</td><td>Cowork</td><td>Every turn</td></tr>
+<tr><td><strong>L2</strong></td><td>Cowork global</td><td>Cowork</td><td>Once / session</td></tr>
+<tr><td><strong>L3</strong></td><td>Code CLAUDE.md</td><td>Code</td><td>Once / session</td></tr>
+<tr><td><strong>L4</strong></td><td>User Preferences</td><td>All</td><td>Once / session — <strong>most efficient</strong></td></tr>
+<tr><td><strong>L5</strong></td><td>Memory</td><td>Chat + Cowork</td><td>Auto-injected</td></tr>
+<tr><td><strong>L6</strong></td><td>Skills</td><td>All Claude</td><td>Lazy / on trigger</td></tr>
+<tr><td><strong>L7</strong></td><td>Chat project</td><td>Chat</td><td>Once / session</td></tr>
+</tbody>
+</table>
+
+<h2 id="decision-tree">Decision tree — where should this rule go?</h2>
+
+<p>For any new instruction, walk this tree to find the right layer. The first "yes" wins.</p>
+
+<div class="diagram-container">
+<svg width="100%" viewBox="0 0 680 600" xmlns="http://www.w3.org/2000/svg" role="img">
+<title>Decision tree for placing instructions in the right layer</title>
+<desc>Flowchart showing how to decide which of the 7 layers to use for any given instruction</desc>
+<defs>
+<marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M2 1L8 5L2 9" fill="none" stroke="context-stroke" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></marker>
+</defs>
+<style>
+.t-bold { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 14px; font-weight: 500; }
+.t-sub { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 12px; }
+</style>
+
+<rect x="240" y="20" width="200" height="50" rx="8" fill="#F1EFE8" stroke="#5F5E5A" stroke-width="0.5"/>
+<text class="t-bold" x="340" y="42" text-anchor="middle" fill="#2C2C2A">New instruction</text>
+<text class="t-sub" x="340" y="58" text-anchor="middle" fill="#5F5E5A">Where should it go?</text>
+
+<rect x="200" y="100" width="280" height="56" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text class="t-bold" x="340" y="124" text-anchor="middle" fill="#0C447C">Universal across workspaces?</text>
+<text class="t-sub" x="340" y="142" text-anchor="middle" fill="#185FA5">Same rule everywhere</text>
+<line x1="340" y1="70" x2="340" y2="98" stroke="#888780" stroke-width="0.5" marker-end="url(#arrow)"/>
+
+<rect x="500" y="108" width="160" height="40" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="1"/>
+<text class="t-bold" x="580" y="132" text-anchor="middle" fill="#085041">L4 — User Prefs</text>
+<line x1="480" y1="128" x2="498" y2="128" stroke="#0F6E56" stroke-width="0.5" marker-end="url(#arrow)"/>
+<text class="t-sub" x="490" y="120" text-anchor="middle" fill="#0F6E56">yes</text>
+
+<rect x="200" y="190" width="280" height="56" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text class="t-bold" x="340" y="214" text-anchor="middle" fill="#0C447C">Specific Chat project?</text>
+<text class="t-sub" x="340" y="232" text-anchor="middle" fill="#185FA5">Project Knowledge involved</text>
+<line x1="340" y1="156" x2="340" y2="188" stroke="#888780" stroke-width="0.5" marker-end="url(#arrow)"/>
+<text class="t-sub" x="350" y="176" fill="#A32D2D">no</text>
+
+<rect x="500" y="198" width="160" height="40" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text class="t-bold" x="580" y="222" text-anchor="middle" fill="#085041">L7 — Chat project</text>
+<line x1="480" y1="218" x2="498" y2="218" stroke="#0F6E56" stroke-width="0.5" marker-end="url(#arrow)"/>
+<text class="t-sub" x="490" y="210" text-anchor="middle" fill="#0F6E56">yes</text>
+
+<rect x="200" y="280" width="280" height="56" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text class="t-bold" x="340" y="304" text-anchor="middle" fill="#0C447C">Cowork rule?</text>
+<text class="t-sub" x="340" y="322" text-anchor="middle" fill="#185FA5">Per-project or universal Cowork</text>
+<line x1="340" y1="246" x2="340" y2="278" stroke="#888780" stroke-width="0.5" marker-end="url(#arrow)"/>
+<text class="t-sub" x="350" y="266" fill="#A32D2D">no</text>
+
+<rect x="500" y="270" width="160" height="36" rx="8" fill="#FAECE7" stroke="#993C1D" stroke-width="0.5"/>
+<text class="t-bold" x="580" y="292" text-anchor="middle" fill="#712B13">L1 — per project</text>
+<rect x="500" y="312" width="160" height="36" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text class="t-bold" x="580" y="334" text-anchor="middle" fill="#633806">L2 — global</text>
+<line x1="480" y1="298" x2="498" y2="288" stroke="#0F6E56" stroke-width="0.5" marker-end="url(#arrow)"/>
+<line x1="480" y1="316" x2="498" y2="328" stroke="#0F6E56" stroke-width="0.5" marker-end="url(#arrow)"/>
+<text class="t-sub" x="490" y="306" text-anchor="middle" fill="#0F6E56">yes</text>
+
+<rect x="200" y="370" width="280" height="56" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text class="t-bold" x="340" y="394" text-anchor="middle" fill="#0C447C">Claude Code project config?</text>
+<text class="t-sub" x="340" y="412" text-anchor="middle" fill="#185FA5">CLI session, repo-specific</text>
+<line x1="340" y1="336" x2="340" y2="368" stroke="#888780" stroke-width="0.5" marker-end="url(#arrow)"/>
+<text class="t-sub" x="350" y="356" fill="#A32D2D">no</text>
+
+<rect x="500" y="378" width="160" height="40" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text class="t-bold" x="580" y="402" text-anchor="middle" fill="#085041">L3 — CLAUDE.md</text>
+<line x1="480" y1="398" x2="498" y2="398" stroke="#0F6E56" stroke-width="0.5" marker-end="url(#arrow)"/>
+<text class="t-sub" x="490" y="390" text-anchor="middle" fill="#0F6E56">yes</text>
+
+<rect x="200" y="460" width="280" height="56" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text class="t-bold" x="340" y="484" text-anchor="middle" fill="#0C447C">Pattern triggered by keywords?</text>
+<text class="t-sub" x="340" y="502" text-anchor="middle" fill="#185FA5">Auto-fires on certain phrases</text>
+<line x1="340" y1="426" x2="340" y2="458" stroke="#888780" stroke-width="0.5" marker-end="url(#arrow)"/>
+<text class="t-sub" x="350" y="446" fill="#A32D2D">no</text>
+
+<rect x="500" y="468" width="160" height="40" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text class="t-bold" x="580" y="492" text-anchor="middle" fill="#3C3489">L6 — Skill</text>
+<line x1="480" y1="488" x2="498" y2="488" stroke="#0F6E56" stroke-width="0.5" marker-end="url(#arrow)"/>
+<text class="t-sub" x="490" y="480" text-anchor="middle" fill="#0F6E56">yes</text>
+
+<rect x="120" y="540" width="440" height="40" rx="6" fill="none" stroke="#888780" stroke-width="0.5" stroke-dasharray="4 3"/>
+<text class="t-sub" x="340" y="558" text-anchor="middle" font-weight="500" fill="#444441">Default fallback</text>
+<text class="t-sub" x="340" y="572" text-anchor="middle" fill="#5F5E5A">If unclear after all questions, use L4 — universal applies broadly at low cost</text>
+</svg>
+<div class="diagram-caption">Decision tree: walk top to bottom. First "yes" determines the layer.</div>
+</div>
+
+<blockquote>
+<strong>Default fallback:</strong> If nothing fits clearly, use L4 (User Preferences). It's universal, cheap, and rarely wrong.
+</blockquote>
+
+<h2 id="quick-start">Quick start (Claude — 10 minutes)</h2>
+
+<pre><code># 1. Unzip and run setup
+unzip claude-cost-kit.zip
+cd claude-cost-kit
 bash setup.sh
-<span class="kw">source</span> ~/.zshrc</pre>
-          </div>
-        </div>
-      </div>
+source ~/.zshrc
 
-      <div class="step">
-        <div class="step-num">3</div>
-        <div class="step-content">
-          <span class="step-tag tag-manual">manual · one-time · all platforms</span>
-          <h3>Paste the universal output rules into every platform</h3>
-          <p>From <code>core/OUTPUT_RULES.md</code>: paste the User Preferences block into each platform's settings. Takes 2 minutes. Saves tokens on every response, forever.</p>
-          <div class="code-block">
-            <div class="code-header"><span class="code-lang">Paste into: Claude User Preferences · ChatGPT Custom Instructions · Gem Instructions</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-            <pre>Respond concisely. Lead with the answer, not the reasoning.
-No openers (Great!, Sure!, Certainly!). No closers.
-Tables over prose for comparisons.
-One recommendation, not a menu of options.
-If I ask a yes/no question, answer it first.</pre>
-          </div>
-          <div class="alert alert-info"><span>💡</span><span>These 5 rules eliminate 20–60 tokens of pure overhead from <em>every</em> response. At 10 responses/session × 200 sessions/year, that's millions of saved tokens.</span></div>
-        </div>
-      </div>
+# 2. Follow the manual UI steps the script lists at the end:
+#    L4 → Settings → Profile → Preferences → paste OUTPUT_RULES.md
+#    L2 → Cowork → Settings → Global Instructions → paste cowork-global-instructions.md
+#    L1 → For each Cowork project → paste tailored cowork-project-instructions.md
+#    L7 → For each Chat project → paste tailored chat-project-instructions.md
+#    L6 → Cowork → Customize → Skills → install 3 .skill zips from .build/</code></pre>
 
-      <div class="step">
-        <div class="step-num">4</div>
-        <div class="step-content">
-          <span class="step-tag tag-manual">manual · one-time</span>
-          <h3>Set up context areas on each platform</h3>
-          <p>The same contexts defined in <code>config.yaml</code> map to each platform's native scoping mechanism:</p>
-          <div class="platform-card claude" style="margin-top:14px"><div class="platform-card-label label-claude">Claude</div><p>Sidebar → Projects → New Project. Paste <code>platforms/claude/CLAUDE.md</code> content into Custom Instructions. Create one project per context area. Install <code>platforms/claude/SKILL.md</code> in Cowork → Skills.</p></div>
-          <div class="platform-card openai"><div class="platform-card-label label-openai">ChatGPT / OpenAI</div><p>Sidebar → Projects → New Project. Paste <code>platforms/openai/SYSTEM_PROMPT.md</code> into project instructions. Or: Explore GPTs → Create → paste into the Custom GPT system prompt for a reusable agent.</p></div>
-          <div class="platform-card gemini"><div class="platform-card-label label-gemini">Gemini</div><p>Sidebar → Gems → New Gem. Paste <code>platforms/gemini/GEM_INSTRUCTIONS.md</code> into the system instructions. Enable only the Google Workspace extensions this Gem needs. Create one Gem per context.</p></div>
-        </div>
-      </div>
+<h2 id="quick-start-other">Quick start (OpenAI / Gemini — 5 minutes)</h2>
 
-      <div class="step">
-        <div class="step-num">5</div>
-        <div class="step-content">
-          <span class="step-tag tag-once">billing · verify once</span>
-          <h3>Lock billing guardrails on each platform</h3>
-          <p>The most important billing setting is the one you set and forget:</p>
-          <div class="ref-table-wrap" style="margin-top:12px">
-            <table class="ref-table">
-              <thead><tr><th>Platform</th><th>Where</th><th>What to set</th></tr></thead>
-              <tbody>
-                <tr><td style="color:var(--claude)">Claude</td><td>claude.ai → Settings → Billing</td><td>Auto-reload OFF, monthly spend limit ON</td></tr>
-                <tr><td style="color:var(--openai)">OpenAI</td><td>platform.openai.com → Settings → Limits</td><td>Monthly usage cap in dollars</td></tr>
-                <tr><td style="color:var(--gemini)">Gemini API</td><td>console.cloud.google.com → Billing → Budgets</td><td>Monthly budget alert at your threshold</td></tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </div>
-    </div>
-  </div>
-</section>
+<pre><code># OpenAI
+unzip openai-cost-kit.zip
+# 1. ChatGPT → Settings → Personalization → Custom Instructions → paste OUTPUT_RULES.md
+# 2. (optional) Build Custom GPTs using SYSTEM_PROMPT.md
 
-<!-- SNIPPETS -->
-<section id="snippets">
-  <div class="container">
-    <h4>Snippets</h4>
-    <h2>Copy-paste. Works everywhere.</h2>
-    <div style="height:28px"></div>
-    <div class="tab-list">
-      <button class="tab-btn active" onclick="switchTab(this,'t-summary')">Summary Prompt</button>
-      <button class="tab-btn" onclick="switchTab(this,'t-brief')">Sub-Agent Brief</button>
-      <button class="tab-btn" onclick="switchTab(this,'t-claude')">Claude Aliases</button>
-      <button class="tab-btn" onclick="switchTab(this,'t-config')">config.yaml</button>
-      <button class="tab-btn" onclick="switchTab(this,'t-api-openai')">OpenAI API</button>
-      <button class="tab-btn" onclick="switchTab(this,'t-api-gemini')">Gemini API</button>
-    </div>
+# Gemini
+unzip gemini-cost-kit.zip
+# 1. Gemini app → Settings → Personal Context → paste OUTPUT_RULES.md
+# 2. (optional) Build Gems using GEM_INSTRUCTIONS.md</code></pre>
 
-    <div id="t-summary" class="tab-panel active">
-      <div class="code-block"><div class="code-header"><span class="code-lang">thread summarization — works on all platforms — use at turn 15</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-      <pre>Summarize this thread in 150 words: key decisions made,
-constraints established, open questions, and the single most
-important next step. Preserve any code snippets or structured
-data as-is. Omit pleasantries and chain-of-thought.</pre></div>
-      <p style="font-size:.84rem;color:var(--text-muted);margin-top:12px">Paste in current thread → copy output → new chat → paste as first message. Reduces context cost by ~95% while preserving everything that matters.</p>
-    </div>
+<h2 id="routing">Model + effort routing</h2>
 
-    <div id="t-brief" class="tab-panel">
-      <div class="code-block"><div class="code-header"><span class="code-lang">sub-agent brief — works on all platforms — scoped JSON only</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-      <pre>{
-  <span class="str">"task"</span>: <span class="str">"one-sentence description of what this agent must do"</span>,
-  <span class="str">"constraints"</span>: [
-    <span class="str">"hard constraint 1"</span>,
-    <span class="str">"hard constraint 2"</span>
-  ],
-  <span class="str">"inputs"</span>: {
-    <span class="str">"key"</span>: <span class="str">"minimum required data — never full conversation history"</span>
-  },
-  <span class="str">"output_format"</span>: <span class="str">"expected return structure or schema"</span>,
-  <span class="str">"context"</span>: <span class="str">"2-3 sentences of background — no more"</span>
-}</pre></div>
-    </div>
+<p>Claude Opus 4.7 era. Always-on, applies to every response.</p>
 
-    <div id="t-claude" class="tab-panel">
-      <div class="code-block"><div class="code-header"><span class="code-lang">~/.zshrc — Claude context-scoped aliases</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-      <pre><span class="cm"># Context-scoped launchers — load only the MCP servers the task needs</span>
-<span class="kw">alias</span> <span class="tl">claude-saas</span>=<span class="str">"claude --mcp-config ~/.claude/mcp-configs/mcp-saas.json"</span>
-<span class="kw">alias</span> <span class="tl">claude-work</span>=<span class="str">"claude --mcp-config ~/.claude/mcp-configs/mcp-work.json"</span>
-<span class="kw">alias</span> <span class="tl">claude-infra</span>=<span class="str">"claude --mcp-config ~/.claude/mcp-configs/mcp-infra.json"</span>
-<span class="kw">alias</span> <span class="tl">claude-x</span>=<span class="str">"claude --mcp-config ~/.claude/mcp-configs/mcp-default.json"</span>
-<span class="kw">alias</span> <span class="tl">cu</span>=<span class="str">"ccusage"</span>
-<span class="kw">alias</span> <span class="tl">cu-today</span>=<span class="str">"ccusage --since today"</span>
-<span class="kw">alias</span> <span class="tl">agent-brief</span>=<span class="str">'echo "{\"task\":\"\",\"constraints\":[],\"inputs\":{},\"output_format\":\"\",\"context\":\"\"}" | pbcopy && echo "Copied"'</span></pre></div>
-    </div>
+<table>
+<thead><tr><th>Task</th><th>Model</th><th>Effort</th><th>Max output</th></tr></thead>
+<tbody>
+<tr><td>Quick lookup, single function</td><td>Haiku 4.5</td><td>Low</td><td>360</td></tr>
+<tr><td>Chat, summaries, drafts</td><td>Sonnet 4.6</td><td>Medium</td><td>960</td></tr>
+<tr><td>Architecture / design review</td><td>Opus 4.7</td><td>High</td><td>720</td></tr>
+<tr><td>Routine feature code</td><td>Opus 4.7</td><td>High</td><td>1440</td></tr>
+<tr><td>Security audit, complex refactor</td><td>Opus 4.7</td><td>xHigh</td><td>1440</td></tr>
+</tbody>
+</table>
 
-    <div id="t-config" class="tab-panel">
-      <div class="code-block"><div class="code-header"><span class="code-lang">config.yaml — full template</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-      <pre>platforms:
-  enabled:
-    - claude
-    <span class="cm"># - openai</span>
-    <span class="cm"># - gemini</span>
+<p><strong>Escalation ladder:</strong> Low → Medium → High → xHigh → STOP. Never use Max — diminishing returns vs xHigh don't justify the spend. Escalate one step only after 2 failures at current tier.</p>
 
-response_style:
-  lead_with_answer: true
-  no_openers: true
-  no_closers: true
-  tables_over_prose: true
-  one_recommendation: true
+<h2 id="auto-sync">Auto-sync architecture</h2>
 
-token_budgets:
-  quick: <span class="am">300</span>
-  deep_work: <span class="am">800</span>
-  build: <span class="am">1200</span>
-  research: <span class="am">600</span>
+<p>Single source of truth at <code>~/dev/skills-source/</code> (private GitHub repo). fswatch monitors 6 paths and auto-commits + pushes on save:</p>
 
-model_routing:
-  claude:
-    default: <span class="str">claude-sonnet-4-6</span>
-    sub_tasks: <span class="str">claude-haiku-4-5-20251001</span>
-    escalate: <span class="str">claude-opus-4-6</span>
-  openai:
-    default: <span class="str">gpt-4o</span>
-    sub_tasks: <span class="str">gpt-4o-mini</span>
-    escalate: <span class="str">o3</span>
-  gemini:
-    default: <span class="str">gemini-2.0-flash</span>
-    sub_tasks: <span class="str">gemini-1.5-flash-8b</span>
-    escalate: <span class="str">gemini-2.5-pro</span>
+<ul>
+<li><code>skills/</code> — rebuilds .skill zips, then commits</li>
+<li><code>cowork-instructions/</code> — auto-commits L1 + L2 templates</li>
+<li><code>chat-instructions/</code> — auto-commits L7 templates</li>
+<li><code>claude-md/</code> — auto-commits L3 templates (symlinked to project repos)</li>
+<li><code>mcp-configs/</code> — auto-commits MCP server configs</li>
+<li><code>user-preferences.md</code> — auto-commits L4 reference</li>
+</ul>
 
-session_hygiene:
-  turn_warning: <span class="am">12</span>
-  turn_reset: <span class="am">15</span>
-  summary_max_words: <span class="am">150</span>
-  idle_threshold_minutes: <span class="am">5</span>   <span class="cm"># Claude Code only</span></pre></div>
-    </div>
+<p>End-to-end timing: edit file → save → ~5 seconds → on GitHub. Other machines <code>git pull</code> to sync.</p>
 
-    <div id="t-api-openai" class="tab-panel">
-      <div class="code-block"><div class="code-header"><span class="code-lang">python — cost-efficient OpenAI API call</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-      <pre><span class="kw">from</span> openai <span class="kw">import</span> OpenAI
+<h2 id="savings">What you'll save</h2>
 
-client = OpenAI()
+<p>Real-world numbers from one user, multi-week measurement on Claude Max plan:</p>
 
-<span class="cm"># Route by task type — don't default to the most expensive model</span>
-<span class="kw">def</span> <span class="vl">get_model</span>(task_type: str) -> str:
-    <span class="kw">return</span> {
-        <span class="str">"quick"</span>:     <span class="str">"gpt-4o-mini"</span>,  <span class="cm"># cheap: lookup, classify, format</span>
-        <span class="str">"deep_work"</span>: <span class="str">"gpt-4o"</span>,      <span class="cm"># default: analysis, strategy, code</span>
-        <span class="str">"escalate"</span>:  <span class="str">"o3"</span>,          <span class="cm"># only after 2 gpt-4o failures</span>
-    }.get(task_type, <span class="str">"gpt-4o"</span>)
+<table>
+<thead><tr><th>Metric</th><th>Before</th><th>After</th><th>Win</th></tr></thead>
+<tbody>
+<tr><td>Cowork skills loaded per turn</td><td>185</td><td>~36</td><td>−7,500 tokens/turn</td></tr>
+<tr><td>L1 project instructions per-turn</td><td>~4,000 tokens</td><td>~130 tokens</td><td>−97%</td></tr>
+<tr><td>Per-turn cost (Sonnet 4.6 / Medium)</td><td>$0.04</td><td>$0.005</td><td>−88%</td></tr>
+</tbody>
+</table>
 
-<span class="cm"># Load only the tools this call needs</span>
-<span class="kw">def</span> <span class="vl">call_llm</span>(messages, task_type=<span class="str">"deep_work"</span>, tools=None):
-    budgets = {<span class="str">"quick"</span>: <span class="am">300</span>, <span class="str">"deep_work"</span>: <span class="am">800</span>, <span class="str">"build"</span>: <span class="am">1200</span>}
-    <span class="kw">return</span> client.chat.completions.create(
-        model=get_model(task_type),
-        max_tokens=budgets.get(task_type, <span class="am">800</span>),
-        messages=messages,
-        tools=tools <span class="kw">or</span> [],  <span class="cm"># never load tools you won't call</span>
-    )</pre></div>
-    </div>
+<p>Annual savings estimate: $300–500 at heavy usage on Sonnet 4.6 rates.</p>
 
-    <div id="t-api-gemini" class="tab-panel">
-      <div class="code-block"><div class="code-header"><span class="code-lang">python — cost-efficient Gemini API call</span><button class="copy-btn" onclick="copyCode(this)">copy</button></div>
-      <pre><span class="kw">import</span> google.generativeai <span class="kw">as</span> genai
+<h2 id="license">License</h2>
 
-genai.configure(api_key=<span class="str">"YOUR_API_KEY"</span>)  <span class="cm"># use env var in production</span>
+<p>Apache 2.0. Free to use, modify, share. Attribution appreciated.</p>
 
-<span class="cm"># Route by task type</span>
-<span class="kw">def</span> <span class="vl">get_model</span>(task_type: str) -> str:
-    <span class="kw">return</span> {
-        <span class="str">"quick"</span>:     <span class="str">"gemini-1.5-flash-8b"</span>,   <span class="cm"># cheapest</span>
-        <span class="str">"deep_work"</span>: <span class="str">"gemini-2.0-flash"</span>,     <span class="cm"># default</span>
-        <span class="str">"escalate"</span>:  <span class="str">"gemini-2.5-pro"</span>,       <span class="cm"># only on 2 failures</span>
-    }.get(task_type, <span class="str">"gemini-2.0-flash"</span>)
+<div class="footer">
+<p>LLM Cost Kit v3.2 · Built April 2026 · Apache 2.0 License</p>
+</div>
 
-<span class="cm"># Only pass tools if the task actually needs them</span>
-<span class="kw">def</span> <span class="vl">call_llm</span>(prompt, task_type=<span class="str">"deep_work"</span>, tools=None,
-             system=<span class="kw">None</span>):
-    budgets = {<span class="str">"quick"</span>: <span class="am">300</span>, <span class="str">"deep_work"</span>: <span class="am">800</span>, <span class="str">"build"</span>: <span class="am">1200</span>}
-    model = genai.GenerativeModel(
-        model_name=get_model(task_type),
-        system_instruction=system,
-        tools=tools <span class="kw">or</span> [],
-        generation_config=genai.GenerationConfig(
-            max_output_tokens=budgets.get(task_type, <span class="am">800</span>),
-            temperature=<span class="am">0.2</span>,
-        )
-    )
-    <span class="kw">return</span> model.generate_content(prompt)</pre></div>
-    </div>
-  </div>
-</section>
-
-<!-- REFERENCE -->
-<section id="reference">
-  <div class="container">
-    <h4>Quick Reference</h4>
-    <h2>Every situation. Every platform.</h2>
-    <div class="ref-table-wrap reveal" style="margin-top:32px">
-      <table class="ref-table">
-        <thead><tr><th>Situation</th><th>Action</th><th>Why</th></tr></thead>
-        <tbody>
-          <tr><td>New chat, same topic</td><td>Continue — context carries</td><td>Cache is warm on all platforms</td></tr>
-          <tr><td>New chat, different topic</td><td>Start fresh + paste 150-word summary as first message</td><td>Carries only what matters</td></tr>
-          <tr><td>Thread at 15 turns</td><td>Run summarization prompt → new chat</td><td>History cost grows quadratically</td></tr>
-          <tr><td>Claude: session idle &gt;5 min</td><td><code>/clear</code> (not <code>/compact</code>)</td><td>Cache cold — compacting re-processes at full price</td></tr>
-          <tr><td>Claude: active session growing</td><td><code>/compact Focus on signatures, contracts, TODOs</code></td><td>Within cache window, compacting is cheap</td></tr>
-          <tr><td>Unused tools/plugins/extensions</td><td>Disable them mid-session or use per-context configs</td><td>~18K tokens overhead per tool per message</td></tr>
-          <tr><td>Sub-agent or function call</td><td>Pass scoped JSON brief — never full history</td><td>Full history × agents = cost multiplier</td></tr>
-          <tr><td>5+ related code edits</td><td>Batch all in one prompt</td><td>Sequential prompts = 3× context overhead</td></tr>
-          <tr><td>Tempted to use Opus/o3/Pro</td><td>Default model first — escalate on 2nd failure only</td><td>5–20× cost, rarely necessary</td></tr>
-          <tr><td>OpenAI: reasoning task on o3</td><td>Verify gpt-4o truly fails first — o3 charges invisible tokens</td><td>One o3 call ≈ 50+ gpt-4o calls</td></tr>
-          <tr><td>Response about to be long</td><td>Ask: "condensed or full version?"</td><td>User may not need everything</td></tr>
-          <tr><td>1st of the month</td><td>Check usage dashboard — model breakdown, credit spend</td><td>Monthly review catches drift before it compounds</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-    <h3 style="margin-top:48px;margin-bottom:16px">Model routing at a glance</h3>
-    <div class="ref-table-wrap reveal">
-      <table class="ref-table">
-        <thead><tr><th>Task</th><th style="color:var(--claude)">Claude</th><th style="color:var(--openai)">ChatGPT</th><th style="color:var(--gemini)">Gemini</th></tr></thead>
-        <tbody>
-          <tr><td>Quick / simple transform</td><td>Haiku</td><td>gpt-4o-mini</td><td>flash-8b</td></tr>
-          <tr><td>Most tasks (default)</td><td>Sonnet</td><td>gpt-4o</td><td>2.0-flash</td></tr>
-          <tr><td>Escalate (2 failures)</td><td>Opus</td><td>o1 / o3</td><td>2.5-pro</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</section>
-
-<!-- FOOTER -->
-<footer>
-  <div class="container">
-    <div class="divider"></div>
-    <h2>Works on every platform you use today — and the next one.</h2>
-    <p>MIT licensed. Add your platform. Adapt for your team. Share it.</p>
-    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;margin-top:20px">
-      <a href="#setup" class="btn-primary">Set it up →</a>
-      <a href="https://github.com/[your-username]/llm-cost-kit" class="btn-secondary">View on GitHub</a>
-    </div>
-    <div class="footer-links">
-      <a href="#principles">Principles</a><a href="#mapping">Platform Map</a>
-      <a href="#setup">Setup</a><a href="#snippets">Snippets</a><a href="#reference">Reference</a>
-    </div>
-    <p style="margin-top:28px;font-size:.76rem;color:var(--text-muted)">MIT License · Claude · ChatGPT · Gemini · macOS</p>
-  </div>
-</footer>
-
-<script>
-  function switchTab(btn, id) {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-    btn.classList.add('active');
-    document.getElementById(id).classList.add('active');
-  }
-  function copyCode(btn) {
-    const text = btn.closest('.code-block').querySelector('pre').innerText;
-    navigator.clipboard.writeText(text).then(() => {
-      btn.textContent = 'copied ✓'; btn.classList.add('copied');
-      setTimeout(() => { btn.textContent = 'copy'; btn.classList.remove('copied'); }, 2000);
-    });
-  }
-  const obs = new IntersectionObserver(entries => entries.forEach(e => { if(e.isIntersecting) e.target.classList.add('visible'); }), { threshold: 0.1, rootMargin: '0px 0px -40px 0px' });
-  document.querySelectorAll('.reveal').forEach(el => obs.observe(el));
-</script>
+</div>
 </body>
 </html>

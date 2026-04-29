@@ -1,48 +1,76 @@
-# Claude Adapter — llm-cost-kit
+# LLM Cost Kit
 
-Cost optimization for Claude Chat, Claude Code, and Cowork.
-This adapter contains everything from the original `claude-cost-kit`.
+> 40-70% cost reduction for Claude, ChatGPT, and Gemini — without quality loss.
 
-## Files
+A complete, layered architecture for managing instructions across all surfaces of an LLM workflow.
 
-| File | Purpose |
+## Download
+
+Pick the kit for your platform from [Releases](https://github.com/daskuntal75/llm-cost-kit/releases/latest):
+
+| Kit | For |
 |---|---|
-| `CLAUDE.md` | Drop into project root — governs Claude Code sessions |
-| `SKILL.md` | Install via Cowork → Skills — auto-detectors + turn nudges |
-| `mcp-configs/` | 4 context-scoped MCP server configurations |
+| `claude-cost-kit.zip` | Claude.ai, Claude Code, Cowork users |
+| `openai-cost-kit.zip` | ChatGPT, Custom GPTs, OpenAI API |
+| `gemini-cost-kit.zip` | Gemini, Gem builder, AI Studio |
+| `llm-cost-kit.zip` | All three platforms in one bundle |
 
-## Shell Aliases (added by `setup.sh`)
+## The 7-layer hierarchy
 
-| Alias | MCP servers loaded | Use for |
-|---|---|---|
-| `claude-saas` | Supabase + Stripe + GitHub | SaaS / app development |
-| `claude-work` | Google Calendar + Gmail | Work tasks and scheduling |
-| `claude-infra` | GitHub only | AI infrastructure, agent projects |
-| `claude-x` | None | Lean default, quick lookups |
-| `cu` | — | `ccusage` token report |
-| `cu-today` | — | Today's token usage |
-| `agent-brief` | — | Copies sub-agent JSON template to clipboard |
+The most important concept in this kit. Where you put your instructions matters as much as what they say.
 
-## Concept Mapping — Claude is the Reference Platform
+![Hierarchy diagram](diagrams/hierarchy-diagram.png)
 
-| Claude concept | OpenAI equivalent | Gemini equivalent |
-|---|---|---|
-| `CLAUDE.md` | Custom GPT system prompt | Gem system instructions |
-| Claude Projects | ChatGPT Projects | Gems |
-| MCP servers | ChatGPT plugins / API `tools` | Gemini Extensions |
-| `/compact` | Manual summarize + new chat | Manual summarize + new chat |
-| `/clear` | Start new chat | Start new Gem conversation |
-| ccusage | platform.openai.com/usage | console.cloud.google.com/apis |
-| Haiku | gpt-4o-mini | gemini-1.5-flash-8b |
-| Sonnet | gpt-4o | gemini-2.0-flash |
-| Opus | o1 / o3 | gemini-2.5-pro |
-| Cowork Skills | Custom GPTs | Gems with system instructions |
+## Decision tree — where should this rule go?
 
-## Quick Setup
+For any new instruction, walk this tree to find the right layer.
+
+![Decision tree](diagrams/decision-tree-diagram.png)
+
+## Quick start
 
 ```bash
-bash platforms/claude/setup.sh
-source ~/.zshrc
+unzip claude-cost-kit.zip
+cd claude-cost-kit
+bash setup.sh
 ```
 
-See the top-level `setup.sh` for the unified wizard that handles all platforms.
+Then follow the manual UI steps the script lists at the end.
+
+See [`core/HIERARCHY.md`](core/HIERARCHY.md) for the full layer guide.
+
+## What's new in v3.4 (latest)
+
+- **Subscription-aware cost tracking** — drops the broken soft/hard cap framework that was wrong for Pro/Max plan users
+- **Two-signal cost model** — subscription value ratio (ccusage retail-equivalent ÷ plan fee) + API pool burn
+- **Throttle event tracking** — empirical signal for plan right-sizing since Anthropic doesn't expose throttle thresholds
+- **Monthly review CLI** — `update-claude-cost --monthly-review` outputs decision aid
+- **Plan-tier downgrade test workflow** — `update-claude-cost --tier-test <smaller-plan>`
+
+v1.0 (April 24) is preserved at the [v1.0 release](https://github.com/daskuntal75/llm-cost-kit/releases/tag/v1.0) for historical reference.
+
+## What you'll save
+
+Real-world numbers from heavy-usage measurement on Claude Max plan:
+
+| Metric | Before | After | Win |
+|---|---|---|---|
+| Cowork skills loaded per turn | 185 | ~36 | -7,500 tokens/turn |
+| L1 project instructions per-turn | ~4,000 tokens | ~130 tokens | -97% |
+| Per-turn cost (Sonnet 4.6 / Medium) | $0.04 | $0.005 | -88% |
+
+## Enhancement requests for Anthropic
+
+Two opportunities (and an offer) documented at [Anthropic-Enhancement-Requests.md](Anthropic-Enhancement-Requests.md):
+
+1. Subscription throttle threshold transparency — expose a "% of monthly quota used" signal
+2. Document the instruction hierarchy formally on docs.anthropic.com
+3. Hire me to work on Anthropic's customer experience
+
+## License
+
+Apache 2.0 — free to use, modify, share.
+
+## Issues + contributions
+
+Open issues at https://github.com/daskuntal75/llm-cost-kit/issues. PRs welcome.
