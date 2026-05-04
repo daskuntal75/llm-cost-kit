@@ -1,7 +1,10 @@
 # Cowork Global Instructions
+<!-- Version: 3.5.2 -->
+<!-- Paste into: Cowork > Global Instructions panel -->
+<!-- Run update-claude-cost --emit-l2 (or wire into hourly pipeline) to keep cost tally current -->
 
 ## Who I Am
-[YOUR ROLE], [YEARS] years experience. [DOMAIN] focus. Founder/builder of [PROJECT IF ANY]. Based in [CITY, STATE].
+[YOUR ROLE], [YEARS] years experience. [DOMAIN] focus. Founder/builder of [YOUR PROJECT]. Based in [CITY, STATE].
 
 ## Stack Expertise
 [Your stack — e.g., GCP · Supabase · Next.js · FastAPI · Python · Anthropic/OpenAI/Gemini APIs]
@@ -40,9 +43,26 @@
 - [Project B] → [scope summary]
 
 ## Skills (auto-trigger)
-- **cost-optimizer** → always-on; appends per-session cost tally to every response. Tracks subscription value ratio + throttle events when a `cumulative-cost.json` paste is provided in the session. v3.4 dropped soft/hard cap framework — capping is the plan throttle's job.
-- **memory-first** → triggers on locked decisions, corrections, "remember"; emits a single line `Saving to Memory: <Type> — <Name> — <Why> — <How to apply>` BEFORE main content. Cowork stores it natively in the Memory panel. Do NOT emit `📌 MEMORY NOTE` blocks — that was the v1.0 workflow.
-- **status-rollup** → triggers on "what's next", "where are we"; reads native Memory panel + linked folders first, returns Yesterday / Today / Blocked / CI / Cost format
+- **cost-optimizer** → always-on; appends per-session cost tally to every response. Tracks subscription value ratio + throttle events when a `cumulative-cost.json` paste is provided in the session. v3.5.2 two-pool model (subscription + api_pool).
+- **memory-first** → triggers on locked decisions, corrections, "remember"; emits a single line `Saving to Memory: <Type> — <Name> — <Why> — <How to apply>` BEFORE main content. Cowork stores it natively in the Memory panel.
+- **status-rollup** → triggers on "what's next", "where are we"; reads native Memory panel + linked folders first, returns Yesterday / Today / Blocked / CI / Cost format.
+
+## Plan + cost context
+
+**Cost tally** (static snapshot — run `update-claude-cost --emit-l2` on your machine to refresh)
+~Xk in / ~Y out · $Z.ZZ session · Plan: [YOUR_PLAN] ($XX/mo, renews YYYY-MM-DD) · ccusage value: $X.XX (X.XX×) · [VERDICT]
+Session: X% (resets in Xh Xm) · Weekly all/sonnet: X%/Y% (resets [DAY HH:MM]) · API pool: $X.XX/$XXX ([TIER], resets YYYY-MM-DD) · Extra usage: [ON/OFF]
+Throttle: X since last reset · refreshed YYYY-MM-DD
+
+**Rate guidance (Cowork static — no live reads):** Haiku ~$2.20/M · Sonnet ~$6.60/M · Opus ~$33/M (blended, Apr 2026)
+
+## Cache hygiene (four anti-patterns — applied to all sessions)
+Cache write 5m TTL costs 1.25× input rate. Cache read costs 0.1×. Break-even: ~3 reads per write.
+
+1. **Mini-sessions for related work.** Combine related work into ONE session — each new session pays the full cache write premium from scratch.
+2. **Writing then walking.** Big startup load writes 100% of tokens to cache. Exit before any reads = zero amortization. Run at least one followup prompt before ending a session.
+3. **Idle > 5 min then continue.** Cache cliff at 5 min TTL. Use `/clear` before resuming — continuing an idle session rewrites cache at full cost.
+4. **CI/E2E fix retry loop.** Stay in ONE session for the entire debug cycle. `/compact` between rounds if needed — never restart mid-cycle. Each restart pays full write premium with zero reads.
 
 ## Throttle event logging
 If I mention hitting a Claude usage limit ("you've reached your limit", "wait until X", "limit reset at Y"), remind me to log it on my Mac:

@@ -1,0 +1,67 @@
+{
+  "_comment": "Sample v3.5.2 schema. Replace [YOUR_*] values with your own. Run: update-claude-cost --plan <name> --fee <amount> --renews YYYY-MM-DD",
+  "month": "YYYY-MM",
+  "schema_version": "3.5.2",
+  "subscription": {
+    "plan": "[YOUR_PLAN_NAME]",
+    "monthly_fee_usd": 0,
+    "renewal_date": "YYYY-MM-DD",
+    "extra_usage_enabled": false,
+    "session_limit": {
+      "percent_used": 0,
+      "resets_at": null,
+      "last_updated": null
+    },
+    "weekly_all_models": {
+      "percent_used": 0,
+      "resets_at": null,
+      "last_updated": null
+    },
+    "weekly_sonnet_only": {
+      "percent_used": 0,
+      "resets_at": null,
+      "last_updated": null
+    },
+    "throttle_events": [],
+    "throttle_hits_mtd": 0,
+    "throttle_hits_since_last_reset": 0,
+    "throttle_breakdown_since_reset": {
+      "usage_limit": 0,
+      "tool_limit": 0
+    },
+    "window_started_at": null,
+    "next_reset_at": null,
+    "total_downtime_mtd_minutes": 0
+  },
+  "api_pool": {
+    "tier_name": "[YOUR_TIER]",
+    "tier_ceiling": 0.00,
+    "customer_limit": 0.00,
+    "current_spend": 0.00,
+    "credit_balance": 0.00,
+    "auto_reload_threshold": 0,
+    "auto_reload_amount": 0,
+    "alerts_at": [],
+    "resets_on": "YYYY-MM-DD",
+    "rate_limits": {
+      "rpm": 0,
+      "input_tpm": 0,
+      "output_tpm": 0
+    },
+    "admin_api_key_set": false,
+    "last_updated": null
+  },
+  "value_signal": {
+    "ccusage_mtd": 0.00,
+    "ratio_to_plan_fee": 0.00,
+    "verdict": "no data",
+    "downgrade_candidate": false
+  },
+  "tier_test": {
+    "last_test": null,
+    "next_check": null,
+    "candidate_plan": null,
+    "candidate_fee": null,
+    "test_status": "none"
+  }
+}
