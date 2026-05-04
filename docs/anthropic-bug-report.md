@@ -65,4 +65,4 @@ Users building cost tracking tooling have to hardcode the reset date because the
 
 ---
 
-*Reported by a Claude Max user building open-source cost tracking tooling. Full context at [llm-cost-kit](https://github.com/YOUR_GITHUB_USERNAME/llm-cost-kit).*
+*Reported by a Claude Max user building open-source cost tracking tooling. Full context at [llm-cost-kit](https://github.com/daskuntal75/llm-cost-kit).*

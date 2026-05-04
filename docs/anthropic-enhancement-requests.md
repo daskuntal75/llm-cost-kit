@@ -91,4 +91,4 @@ Expose these labels in error responses and the console UI.
 
 ---
 
-*These requests are based on real workflow gaps discovered while building open-source tooling for Claude cost management. The full framework is at [llm-cost-kit](https://github.com/YOUR_GITHUB_USERNAME/llm-cost-kit).*
+*These requests are based on real workflow gaps discovered while building open-source tooling for Claude cost management. The full framework is at [llm-cost-kit](https://github.com/daskuntal75/llm-cost-kit).*

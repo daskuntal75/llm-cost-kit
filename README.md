@@ -6,7 +6,7 @@ A complete, layered architecture for managing instructions across all surfaces o
 
 ## Download
 
-Pick the kit for your platform from [Releases](https://github.com/YOUR_GITHUB_USERNAME/llm-cost-kit/releases/latest):
+Pick the kit for your platform from [Releases](https://github.com/daskuntal75/llm-cost-kit/releases/latest):
 
 | Kit | For |
 |---|---|
@@ -30,7 +30,7 @@ For any new instruction, walk this tree to find the right layer.
 ## Quick start
 
 ```bash
-git clone https://github.com/YOUR_GITHUB_USERNAME/llm-cost-kit
+git clone https://github.com/daskuntal75/llm-cost-kit
 cd llm-cost-kit/platforms/claude
 
 # Install scripts
@@ -59,7 +59,7 @@ Then wire the hourly pipeline. See [`platforms/claude/scripts/cumulative-cost-la
 - **Two-pool model corrected** — `subscription` (flat fee) + `api_pool` (all pay-as-you-go). `extra_usage_enabled` is a boolean, not a third pool.
 - **Plan display fix** — `max-5x` renders as `Max 5x` (not `Max-5X`) in auto-refreshed sections.
 
-Previous versions: [v3.4](https://github.com/YOUR_GITHUB_USERNAME/llm-cost-kit/releases/tag/v3.4) · [v1.0](https://github.com/YOUR_GITHUB_USERNAME/llm-cost-kit/releases/tag/v1.0)
+Previous versions: [v3.4](https://github.com/daskuntal75/llm-cost-kit/releases/tag/v3.4) · [v1.0](https://github.com/daskuntal75/llm-cost-kit/releases/tag/v1.0)
 
 ## What you'll save
 
@@ -109,8 +109,9 @@ Full analysis: [`docs/responsible-ai-cost-framework.md`](docs/responsible-ai-cos
 
 ## License
 
-Apache 2.0 — free to use, modify, share.
+CC BY-NC 4.0 — free to use, modify, and share for non-commercial purposes. Attribution required.
+See [LICENSE](LICENSE) for full terms.
 
 ## Issues + contributions
 
-Open issues at https://github.com/YOUR_GITHUB_USERNAME/llm-cost-kit/issues. PRs welcome.
+Open issues at https://github.com/daskuntal75/llm-cost-kit/issues. PRs welcome.

@@ -214,7 +214,7 @@ This framework solves the problem at the user level. Platform-level changes woul
 
 ```bash
 # 1. Clone
-git clone https://github.com/YOUR_GITHUB_USERNAME/llm-cost-kit
+git clone https://github.com/daskuntal75/llm-cost-kit
 cd llm-cost-kit
 
 # 2. Install scripts
