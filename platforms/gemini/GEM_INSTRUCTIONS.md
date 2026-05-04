@@ -50,10 +50,17 @@ Gemini's 1M-2M context is a tool, not a pattern. Don't dump everything — filte
 - Don't enable high thinking budgets by default
 - Don't paste 500K tokens of context "just to be safe" — model loses coherence past ~200K on most tasks
 
+## Cache awareness
+- System prompt + reference docs ≥ 32,768 tokens → create a CachedContent object via the API for reuse
+- Keep stable content (rules, tool defs, reference docs) at the start of your prompt — before per-request content
+- TTL: 1h default is reasonable for interactive workloads. Extend for batch jobs; shorten for one-offs.
+- Break-even: cache saves money after ~5 calls within the TTL window
+- Delete cache objects when done — storage fee is small but adds up on forgotten caches
+
 ## Cost tally rule (always-on)
 End every response with:
 ```
-Tokens: ~Xk in / ~Y out
+Tokens: ~Xk in / ~Y out | Model: Flash/Pro | thinking_budget: N
 ```
 
 ## Tone

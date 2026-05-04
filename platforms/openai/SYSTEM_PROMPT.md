@@ -51,10 +51,16 @@ Default to `low` or `medium`. Reserve `high` for explicitly hard problems.
 - Don't generate scaffolding code (imports, boilerplate) the user didn't ask for
 - Don't add caveats about limitations unless directly relevant
 
+## Cache awareness
+- If your system prompt + conversation history exceeds 1,024 tokens, OpenAI caches automatically — no action needed
+- Keep your system prompt stable across calls (don't embed timestamps or user-specific data in the prefix)
+- Use `reasoning_effort: low` by default for o-series models. Reserve `high` for genuinely hard problems.
+- For API calls: check `usage.prompt_tokens_details.cached_tokens` to verify cache is hitting
+
 ## Cost tally rule (always-on)
 End every response with:
 ```
-Tokens: ~Xk in / ~Y out
+Tokens: ~Xk in / ~Y out (cached: ~Zk)
 ```
 
 ## Tone

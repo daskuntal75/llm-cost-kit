@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LLM Cost Kit v3.2 — Guide</title>
+<title>LLM Cost Kit v3.5.2 — Guide</title>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
@@ -106,7 +106,7 @@
 <body>
 <div class="container">
 
-<h1>LLM Cost Kit v3.2</h1>
+<h1>LLM Cost Kit v3.5.2</h1>
 <p class="subtitle">40–70% cost reduction for Claude, ChatGPT, and Gemini — without quality loss.</p>
 
 <div class="toc">
@@ -120,21 +120,23 @@
 <li><a href="#routing">Model + effort routing</a></li>
 <li><a href="#auto-sync">Auto-sync architecture</a></li>
 <li><a href="#savings">What you'll save</a></li>
+<li><a href="#comparison">Claude vs OpenAI vs Gemini</a></li>
 <li><a href="#license">License</a></li>
 </ul>
 </div>
 
-<h2 id="what-changed">What's new in v3.2 (vs v3.0)</h2>
+<h2 id="what-changed">What's new in v3.5.2</h2>
 
 <table>
 <thead><tr><th>Addition</th><th>Why it matters</th></tr></thead>
 <tbody>
+<tr><td><strong>Cache hygiene rule 4</strong></td><td>CI/E2E retry loop identified as the highest-cost anti-pattern. One debugging day, 8 micro-sessions = $17.83 at 100% wasted writes.</td></tr>
+<tr><td><strong>L2 + L3-global auto-refresh</strong></td><td><code>--emit-l2</code> and <code>--emit-l3-global</code> flags extend the hourly pipeline to Cowork global and Code CLAUDE.md. Cost tally stays current across all machine-reachable surfaces.</td></tr>
+<tr><td><strong>Two-pool model corrected</strong></td><td><code>subscription</code> (flat fee) + <code>api_pool</code> (all pay-as-you-go). <code>extra_usage_enabled</code> is a boolean, not a third pool.</td></tr>
 <tr><td><strong>7-layer hierarchy</strong> (L1–L7)</td><td>Knowing which layer to use for each instruction = the single biggest cost lever.</td></tr>
-<tr><td><strong>Always-on cost tally</strong></td><td>Every response ends with <code>Tokens: ~Xk in / ~Y out · Session: ~$Z.ZZ</code>. Continuous visibility.</td></tr>
-<tr><td><strong>3-skill family</strong></td><td>cost-optimizer, memory-first, status-rollup auto-trigger across Cowork sessions.</td></tr>
-<tr><td><strong>fswatch auto-sync</strong></td><td>Edit any file in skills-source, GitHub has it in ~5 seconds.</td></tr>
-<tr><td><strong>L1/L2/L7 templates</strong></td><td>Copy-paste templates for every layer.</td></tr>
-<tr><td><strong>L3 symlink pattern</strong></td><td>Production app repos no longer carry CLAUDE.md as tracked file.</td></tr>
+<tr><td><strong>Always-on cost tally</strong></td><td>Every response ends with <code>~Xk in / ~Y out · $Z.ZZ</code>. Continuous visibility.</td></tr>
+<tr><td><strong>OpenAI + Gemini cache hygiene</strong></td><td>Platform-specific anti-patterns and cache strategies for all three LLMs.</td></tr>
+<tr><td><strong>L1/L2/L3/L7 templates</strong></td><td>Copy-paste templates for every layer, all platforms.</td></tr>
 </tbody>
 </table>
 
@@ -338,20 +340,22 @@ unzip gemini-cost-kit.zip
 
 <p><strong>Escalation ladder:</strong> Low → Medium → High → xHigh → STOP. Never use Max — diminishing returns vs xHigh don't justify the spend. Escalate one step only after 2 failures at current tier.</p>
 
-<h2 id="auto-sync">Auto-sync architecture</h2>
+<h2 id="auto-sync">Hourly cost pipeline</h2>
 
-<p>Single source of truth at <code>~/dev/skills-source/</code> (private GitHub repo). fswatch monitors 6 paths and auto-commits + pushes on save:</p>
+<p>An optional LaunchAgent (macOS) refreshes your cost state and pushes live tally to all three machine-reachable instruction layers every hour:</p>
 
-<ul>
-<li><code>skills/</code> — rebuilds .skill zips, then commits</li>
-<li><code>cowork-instructions/</code> — auto-commits L1 + L2 templates</li>
-<li><code>chat-instructions/</code> — auto-commits L7 templates</li>
-<li><code>claude-md/</code> — auto-commits L3 templates (symlinked to project repos)</li>
-<li><code>mcp-configs/</code> — auto-commits MCP server configs</li>
-<li><code>user-preferences.md</code> — auto-commits L4 reference</li>
-</ul>
+<pre><code># Wire the hourly pipeline (macOS LaunchAgent)
+cp platforms/claude/cumulative/cumulative-cost-launchagent.sh ~/Library/LaunchAgents/
+launchctl load ~/Library/LaunchAgents/cumulative-cost-launchagent.plist
 
-<p>End-to-end timing: edit file → save → ~5 seconds → on GitHub. Other machines <code>git pull</code> to sync.</p>
+# What it does every hour:
+update-claude-cost --code              # refresh ccusage session data
+update-claude-cost --pull-api-spend    # pull API pool state via Admin API
+update-claude-cost --emit-l7           # push cost tally to Chat project instructions (L7)
+update-claude-cost --emit-l2           # push cost tally to Cowork global instructions (L2)
+update-claude-cost --emit-l3-global    # push cost tally to Code CLAUDE.md (L3)</code></pre>
+
+<p>Scripts are self-contained in <code>platforms/claude/scripts/</code>. See <code>platforms/claude/scripts/update-claude-cost</code> for all flags.</p>
 
 <h2 id="savings">What you'll save</h2>
 
@@ -368,12 +372,43 @@ unzip gemini-cost-kit.zip
 
 <p>Annual savings estimate: $300–500 at heavy usage on Sonnet 4.6 rates.</p>
 
+<h2 id="comparison">Claude vs OpenAI vs Gemini</h2>
+
+<p>Which platform does the most to help you control what you spend? Measured across caching, cost visibility, model routing, and developer UX.</p>
+
+<table>
+<thead><tr><th>Dimension</th><th>Winner</th><th>Runner-up</th><th>Lagging</th></tr></thead>
+<tbody>
+<tr><td>Cache savings ceiling</td><td><strong>Claude</strong> (90% read discount)</td><td>Gemini (~75%)</td><td>OpenAI (50%)</td></tr>
+<tr><td>Cache transparency</td><td><strong>Gemini</strong> (explicit API, configurable TTL)</td><td>OpenAI (usage dashboard)</td><td>Claude (no efficiency score)</td></tr>
+<tr><td>Zero-friction caching</td><td><strong>OpenAI</strong> (automatic, no config)</td><td>—</td><td>Claude + Gemini (manual)</td></tr>
+<tr><td>Cost visibility / billing UI</td><td><strong>OpenAI / Gemini</strong></td><td>—</td><td>Claude (conflates charge types)</td></tr>
+<tr><td>Model routing granularity</td><td><strong>Claude</strong> (3 tiers + effort levels)</td><td>OpenAI (multi-model + reasoning_effort)</td><td>Gemini (Flash/Pro only)</td></tr>
+<tr><td>Instruction layer architecture</td><td><strong>Claude</strong> (7 layers)</td><td>OpenAI (3 layers)</td><td>Gemini (2 layers)</td></tr>
+<tr><td>Long-context cost efficiency</td><td><strong>Gemini</strong> (Flash + 1M tokens)</td><td>Claude (Haiku)</td><td>OpenAI (gpt-4o-mini)</td></tr>
+</tbody>
+</table>
+
+<h3>When to use which</h3>
+
+<table>
+<thead><tr><th>Use Claude when…</th><th>Use OpenAI when…</th><th>Use Gemini when…</th></tr></thead>
+<tbody>
+<tr><td>Heavy software development (Claude Code)</td><td>Caching that just works with no setup</td><td>Large multimodal contexts (32K+ tokens)</td></tr>
+<tr><td>Maximum cache savings on text workloads</td><td>Most mature API ecosystem</td><td>Long-context tasks (Flash at 1M tokens)</td></tr>
+<tr><td>Fine-grained model + effort routing</td><td>Reasoning models (o-series) are central</td><td>Most transparent cache control</td></tr>
+<tr><td>Multi-surface 7-layer instruction architecture</td><td>Team can't enforce session discipline</td><td>Already in Google Cloud ecosystem</td></tr>
+</tbody>
+</table>
+
+<p>Full comparison with caching mechanics, anti-patterns, and decision guides: <a href="https://github.com/daskuntal75/llm-cost-kit/blob/main/docs/llm-comparison.md">docs/llm-comparison.md</a></p>
+
 <h2 id="license">License</h2>
 
-<p>Apache 2.0. Free to use, modify, share. Attribution appreciated.</p>
+<p>CC BY-NC 4.0 — free to use, modify, and share for non-commercial purposes. Attribution required. See <a href="https://github.com/daskuntal75/llm-cost-kit/blob/main/LICENSE">LICENSE</a> for full terms.</p>
 
 <div class="footer">
-<p>LLM Cost Kit v3.2 · Built April 2026 · Apache 2.0 License</p>
+<p>LLM Cost Kit v3.5.2 · Built 2026 · <a href="https://github.com/daskuntal75/llm-cost-kit">github.com/daskuntal75/llm-cost-kit</a> · CC BY-NC 4.0</p>
 </div>
 
 </div>

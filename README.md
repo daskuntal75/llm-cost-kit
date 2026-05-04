@@ -90,6 +90,26 @@ Full framework with impact analysis: [`docs/responsible-ai-cost-framework.md`](d
 | `cache-efficiency` | Compute amortization ratio from ccusage data |
 | `admin-api-pull.py` | Pull API pool state via Anthropic Admin API |
 
+## Platform comparison — Claude vs OpenAI vs Gemini
+
+Which platform does the most to help you control what you spend?
+
+| Dimension | Winner |
+|---|---|
+| Cache savings ceiling | **Claude** (90% read discount) |
+| Cache transparency | **Gemini** (explicit API, configurable TTL) |
+| Zero-friction caching | **OpenAI** (automatic, no config) |
+| Cost visibility / billing UI | **OpenAI / Gemini** |
+| Model routing granularity | **Claude** (3 tiers + effort levels) |
+| Long-context cost efficiency | **Gemini** (Flash + 1M tokens) |
+
+Full comparison with caching mechanics, anti-patterns, and routing guides: [`docs/llm-comparison.md`](docs/llm-comparison.md)
+
+Platform-specific cache hygiene:
+- Claude: [`core/CACHE_HYGIENE.md`](core/CACHE_HYGIENE.md)
+- OpenAI: [`platforms/openai/CACHE_HYGIENE.md`](platforms/openai/CACHE_HYGIENE.md)
+- Gemini: [`platforms/gemini/CACHE_HYGIENE.md`](platforms/gemini/CACHE_HYGIENE.md)
+
 ## Enhancement requests for Anthropic
 
 Six gaps documented at [`docs/anthropic-enhancement-requests.md`](docs/anthropic-enhancement-requests.md):
@@ -100,6 +120,8 @@ Six gaps documented at [`docs/anthropic-enhancement-requests.md`](docs/anthropic
 4. Cache amortization visibility
 5. Usage event webhooks
 6. Cowork instruction API access
+
+Filed as GitHub issues: [anthropics/anthropic-sdk-python/issues](https://github.com/anthropics/anthropic-sdk-python/issues)
 
 ## The responsible AI angle
 
