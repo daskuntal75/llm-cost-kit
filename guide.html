@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LLM Cost Kit v3.5.2 — Guide</title>
+<title>LLM Cost Kit v3.6 — Guide</title>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
@@ -106,13 +106,13 @@
 <body>
 <div class="container">
 
-<h1>LLM Cost Kit v3.5.2</h1>
+<h1>LLM Cost Kit v3.6</h1>
 <p class="subtitle">40–70% cost reduction for Claude, ChatGPT, and Gemini — without quality loss.</p>
 
 <div class="toc">
 <h3>Contents</h3>
 <ul>
-<li><a href="#what-changed">What's new in v3.2</a></li>
+<li><a href="#what-changed">What's new in v3.6</a></li>
 <li><a href="#hierarchy">The 7-layer hierarchy</a></li>
 <li><a href="#decision-tree">Decision tree — where should this rule go?</a></li>
 <li><a href="#quick-start">Quick start (Claude)</a></li>
@@ -125,12 +125,15 @@
 </ul>
 </div>
 
-<h2 id="what-changed">What's new in v3.5.2</h2>
+<h2 id="what-changed">What's new in v3.6</h2>
 
 <table>
 <thead><tr><th>Addition</th><th>Why it matters</th></tr></thead>
 <tbody>
-<tr><td><strong>Cache hygiene rule 4</strong></td><td>CI/E2E retry loop identified as the highest-cost anti-pattern. One debugging day, 8 micro-sessions = $17.83 at 100% wasted writes.</td></tr>
+<tr><td><strong><code>bootstrap-macos.sh</code></strong></td><td>Pre-flight installer for a bare Mac (Mac Mini, new laptop). Handles Xcode CLT, Homebrew, node, jq, fswatch, git, gh, Claude Desktop cask. Closes the prereq gap <code>setup.sh</code> previously assumed.</td></tr>
+<tr><td><strong><code>verify.sh</code></strong></td><td>Green/red dashboard for prereqs, auth state, cost-tracking init, LaunchAgent status, MCP configs, instruction-layer presence. Run anytime to confirm setup health.</td></tr>
+<tr><td><strong>MCP connector checklist</strong></td><td><code>setup.sh</code> tail and <code>verify.sh</code> now surface <a href="https://claude.ai/settings/connectors">claude.ai/settings/connectors</a> — the one step every fresh-machine setup forgets.</td></tr>
+<tr><td><strong>Cache hygiene rule 4</strong> (carry-over from v3.5.2)</td><td>CI/E2E retry loop identified as the highest-cost anti-pattern. One debugging day, 8 micro-sessions = $17.83 at 100% wasted writes.</td></tr>
 <tr><td><strong>L2 + L3-global auto-refresh</strong></td><td><code>--emit-l2</code> and <code>--emit-l3-global</code> flags extend the hourly pipeline to Cowork global and Code CLAUDE.md. Cost tally stays current across all machine-reachable surfaces.</td></tr>
 <tr><td><strong>Two-pool model corrected</strong></td><td><code>subscription</code> (flat fee) + <code>api_pool</code> (all pay-as-you-go). <code>extra_usage_enabled</code> is a boolean, not a third pool.</td></tr>
 <tr><td><strong>7-layer hierarchy</strong> (L1–L7)</td><td>Knowing which layer to use for each instruction = the single biggest cost lever.</td></tr>
@@ -296,20 +299,47 @@
 <strong>Default fallback:</strong> If nothing fits clearly, use L4 (User Preferences). It's universal, cheap, and rarely wrong.
 </blockquote>
 
-<h2 id="quick-start">Quick start (Claude — 10 minutes)</h2>
+<h2 id="quick-start">Quick start (Claude)</h2>
 
-<pre><code># 1. Unzip and run setup
+<h3>Fresh Mac (Mac Mini, new laptop) — ~30 minutes</h3>
+
+<pre><code># 1. Pre-flight installer for a bare Mac.
+#    Installs: Xcode CLT, Homebrew, node, jq, fswatch, git, gh, Claude Desktop.
+unzip claude-cost-kit.zip
+cd claude-cost-kit
+bash bootstrap-macos.sh
+
+# 2. One-time Anthropic OAuth (browser opens automatically).
+claude
+
+# 3. Main setup: Claude Code CLI, ccusage, MCP configs, aliases, skills, cost LaunchAgent.
+bash setup.sh
+source ~/.zshrc
+
+# 4. Initialize your cost file.
+update-claude-cost --plan max-5x --fee 100 --renews 2026-06-21
+
+# 5. Verify everything: green/red dashboard.
+bash verify.sh</code></pre>
+
+<h3>Already-working Mac — ~10 minutes</h3>
+
+<pre><code># Skip step 1; the bootstrap is only needed for fresh installs.
 unzip claude-cost-kit.zip
 cd claude-cost-kit
 bash setup.sh
 source ~/.zshrc
+bash verify.sh</code></pre>
 
-# 2. Follow the manual UI steps the script lists at the end:
-#    L4 → Settings → Profile → Preferences → paste OUTPUT_RULES.md
-#    L2 → Cowork → Settings → Global Instructions → paste cowork-global-instructions.md
-#    L1 → For each Cowork project → paste tailored cowork-project-instructions.md
-#    L7 → For each Chat project → paste tailored chat-project-instructions.md
-#    L6 → Cowork → Customize → Skills → install 3 .skill zips from .build/</code></pre>
+<h3>Manual UI steps the scripts cannot do</h3>
+
+<pre><code># L4 → Settings → Profile → Preferences → paste core/OUTPUT_RULES.md
+# L2 → Cowork → Settings → Global Instructions → paste cowork-global-instructions.md
+# L1 → For each Cowork project → paste tailored cowork-project-instructions.md
+# L7 → For each Chat project → paste tailored chat-project-instructions.md
+# L6 → Cowork → Customize → Skills → install 3 .skill zips from .build/
+# MCP Connectors → https://claude.ai/settings/connectors
+#   Re-auth on each new machine: Gmail, Drive, Calendar, Granola, Gamma, Stripe, Supabase.</code></pre>
 
 <h2 id="quick-start-other">Quick start (OpenAI / Gemini — 5 minutes)</h2>
 
@@ -408,7 +438,7 @@ update-claude-cost --emit-l3-global    # push cost tally to Code CLAUDE.md (L3)<
 <p>CC BY-NC 4.0 — free to use, modify, and share for non-commercial purposes. Attribution required. See <a href="https://github.com/daskuntal75/llm-cost-kit/blob/main/LICENSE">LICENSE</a> for full terms.</p>
 
 <div class="footer">
-<p>LLM Cost Kit v3.5.2 · Built 2026 · <a href="https://github.com/daskuntal75/llm-cost-kit">github.com/daskuntal75/llm-cost-kit</a> · CC BY-NC 4.0</p>
+<p>LLM Cost Kit v3.6 · Built 2026 · <a href="https://github.com/daskuntal75/llm-cost-kit">github.com/daskuntal75/llm-cost-kit</a> · CC BY-NC 4.0</p>
 </div>
 
 </div>
