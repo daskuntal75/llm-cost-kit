@@ -15,10 +15,23 @@ info() { printf "${BLUE}  →${NC} %s\n" "$1"; }
 
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║   LLM Cost Kit v3.2 — Setup                          ║"
+echo "║   LLM Cost Kit v3.6 — Setup                          ║"
 echo "║   (Claude Chat + Cowork + Code)                      ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""
+
+# ── Pre-flight check ────────────────────────────────────────────────────────
+# v3.6: bootstrap-macos.sh handles brew/node/jq/fswatch/Claude Desktop on a
+# fresh Mac. This script assumes those exist. Quick sanity check.
+MISSING=()
+for tool in node npm jq; do
+  command -v "$tool" &>/dev/null || MISSING+=("$tool")
+done
+if (( ${#MISSING[@]} > 0 )); then
+  warn "Missing prerequisites: ${MISSING[*]}"
+  warn "On a fresh Mac, run first:  bash bootstrap-macos.sh"
+  echo ""
+fi
 
 # ── Detect kit type ──────────────────────────────────────────────────────────
 KIT_TYPE="unknown"
@@ -188,7 +201,11 @@ echo "    → Install from file: ~/dev/skills-source/.build/cost-optimizer.skill
 echo "    → Install from file: ~/dev/skills-source/.build/memory-first.skill"
 echo "    → Install from file: ~/dev/skills-source/.build/status-rollup.skill"
 echo ""
-echo "Verify with: source ~/.zshrc && claude-lean --version && cu"
+echo "  MCP Connectors — https://claude.ai/settings/connectors"
+echo "    → Re-auth on each new machine: Gmail, Drive, Calendar,"
+echo "      Granola, Gamma, Stripe, Supabase (any you previously had)."
+echo ""
+echo "Verify everything end-to-end:  bash verify.sh"
 
 # ── Cumulative cost tracking (v3.3) ─────────────────────────────────────────
 echo ""

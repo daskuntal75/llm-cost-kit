@@ -104,14 +104,16 @@ It contains your personal context (project names, security rules, business metri
 
 ## Setup sequence
 
-The `setup.sh` in this kit handles steps 1–4 below automatically. Steps 5–6 require manual UI work in Claude Desktop App.
+On a fresh Mac, run `bootstrap-macos.sh` first (step 0). Then `setup.sh` handles steps 1–4 automatically. Steps 5–6 require manual UI work in Claude Desktop App. `verify.sh` checks 0–4 at the end.
 
+0. **(Fresh Mac only)** `bash bootstrap-macos.sh` — installs Homebrew, node, jq, fswatch, git, gh, Claude Desktop cask. Skip on machines that already have a working dev environment.
 1. Create `~/dev/skills-source/` (or your chosen path) with the structure above
 2. Initialize git, add a private GitHub remote
 3. Copy template files from this kit into the structure
 4. Install fswatch + LaunchAgent + scripts
 5. Manually populate L2 + L1 + L4 + L7 instructions (templates provided)
 6. Set up symlinks from `~/.claude/skills/` → `.build/` and from project repos → `claude-md/`
+7. Run `bash verify.sh` to confirm steps 0–4 are green and surface any gaps in 5–6.
 
 ---
 

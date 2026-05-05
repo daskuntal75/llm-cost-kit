@@ -29,27 +29,49 @@ For any new instruction, walk this tree to find the right layer.
 
 ## Quick start
 
+### Fresh Mac (Mac Mini, new laptop) — 3 scripts, ~30 min
+
 ```bash
 git clone https://github.com/daskuntal75/llm-cost-kit
-cd llm-cost-kit/platforms/claude
+cd llm-cost-kit
 
-# Install scripts
-chmod +x scripts/update-claude-cost scripts/emit-l7-helper.py
-cp scripts/update-claude-cost scripts/emit-l7-helper.py ~/.local/bin/
+# 1. Pre-flight: brew, node, jq, fswatch, gh, Claude Desktop, gh auth
+bash bootstrap-macos.sh
 
-# Initialize your cost file
+# 2. Run claude once for OAuth (browser opens)
+claude
+
+# 3. Main setup: Claude Code CLI, ccusage, MCP configs, aliases, skills, cost LaunchAgent
+bash setup.sh
+
+# 4. Initialize your cost file (one-time)
 update-claude-cost --plan YOUR_PLAN --fee YOUR_MONTHLY_FEE --renews YYYY-MM-DD
 
-# Set your skills-source directory
-export SKILLS_SOURCE_DIR=~/dev/your-skills-repo   # add to ~/.zshrc
-
-# Deploy instruction files
-cp GLOBAL-CLAUDE.md ~/.claude/CLAUDE.md            # Code global (L3)
-cp CLAUDE.md your-project/CLAUDE.md               # Code project (L3)
-# Paste cowork-global-instructions.md into Cowork global settings (L2)
+# 5. Verify: green/red dashboard
+bash verify.sh
 ```
 
-Then wire the hourly pipeline. See [`platforms/claude/scripts/cumulative-cost-launchagent.sh`](platforms/claude/scripts/cumulative-cost-launchagent.sh).
+### Already have a working Mac
+
+Skip step 1. Just `bash setup.sh` then `bash verify.sh`.
+
+### Manual web-UI steps (cannot be scripted)
+
+After the scripts finish, paste tailored content into:
+- **L4** Settings → Profile → Preferences → `core/OUTPUT_RULES.md`
+- **L2** Cowork → Settings → Global Instructions → `cowork-global-instructions.md`
+- **L1 / L7** Per-project paste from `cowork-project-instructions.md` / `chat-project-instructions.md`
+- **L6** Cowork → Customize → Skills → install 3 `.skill` zips
+- **MCP Connectors** → https://claude.ai/settings/connectors (re-auth each provider on a new machine)
+
+Hourly pipeline auto-refreshes L2 + L3-global + L7 cost tally. See [`platforms/claude/scripts/cumulative-cost-launchagent.sh`](platforms/claude/scripts/cumulative-cost-launchagent.sh).
+
+## What's new in v3.6
+
+- **`bootstrap-macos.sh`** — pre-flight installer for a bare Mac. Handles Xcode CLT, Homebrew, node, jq, fswatch, git, gh, Claude Desktop cask. Idempotent.
+- **`verify.sh`** — green/red dashboard for prereqs, auth state, cost-tracking init, LaunchAgent status, MCP configs, instruction-layer presence. Run anytime to confirm setup health.
+- **`setup.sh` pre-flight check** — fails fast with a hint to run `bootstrap-macos.sh` if `node`/`jq` are missing.
+- **First-run summary** now lists MCP connector re-auth (Gmail/Drive/Calendar/Granola/Gamma/Stripe/Supabase) at https://claude.ai/settings/connectors.
 
 ## What's new in v3.5.2
 
