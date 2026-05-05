@@ -29,22 +29,34 @@ For any new instruction, walk this tree to find the right layer.
 
 ## Quick start
 
+### Before you start — have these ready
+
+| Need | Where to get it | Why |
+|---|---|---|
+| Apple ID password | — | Mac initial setup, App Store, iCloud |
+| GitHub credentials | github.com | `bootstrap-macos.sh` runs `gh auth login` (opens browser) |
+| Anthropic account | claude.ai | First `claude` CLI run does OAuth |
+| Anthropic Admin API key *(optional)* | console.anthropic.com → Settings → Admin Keys | Enables `update-claude-cost --pull-api-spend` |
+| Skills-source repo URL *(optional)* | your private GitHub | The setup will offer to bootstrap `~/dev/skills-source/` |
+| Your plan details | claude.ai/settings/billing | Need plan name, monthly fee, renewal date for step 5 |
+
 ### Fresh Mac (Mac Mini, new laptop) — 3 scripts, ~30 min
 
 ```bash
-git clone https://github.com/daskuntal75/llm-cost-kit
-cd llm-cost-kit
+git clone https://github.com/daskuntal75/llm-cost-kit ~/dev/llm-cost-kit
+cd ~/dev/llm-cost-kit
 
-# 1. Pre-flight: brew, node, jq, fswatch, gh, Claude Desktop, gh auth
+# 1. Pre-flight: brew, node, jq, fswatch, gh, Claude Desktop, gh auth login
 bash bootstrap-macos.sh
 
-# 2. Run claude once for OAuth (browser opens)
+# 2. One-time Anthropic OAuth (browser opens)
 claude
 
 # 3. Main setup: Claude Code CLI, ccusage, MCP configs, aliases, skills, cost LaunchAgent
 bash setup.sh
+source ~/.zshrc
 
-# 4. Initialize your cost file (one-time)
+# 4. Initialize your cost state
 update-claude-cost --plan YOUR_PLAN --fee YOUR_MONTHLY_FEE --renews YYYY-MM-DD
 
 # 5. Verify: green/red dashboard
@@ -55,14 +67,23 @@ bash verify.sh
 
 Skip step 1. Just `bash setup.sh` then `bash verify.sh`.
 
-### Manual web-UI steps (cannot be scripted)
+### After the scripts — manual web-UI steps (~20 min, cannot be scripted)
 
-After the scripts finish, paste tailored content into:
-- **L4** Settings → Profile → Preferences → `core/OUTPUT_RULES.md`
-- **L2** Cowork → Settings → Global Instructions → `cowork-global-instructions.md`
-- **L1 / L7** Per-project paste from `cowork-project-instructions.md` / `chat-project-instructions.md`
-- **L6** Cowork → Customize → Skills → install 3 `.skill` zips
-- **MCP Connectors** → https://claude.ai/settings/connectors (re-auth each provider on a new machine)
+| Layer | Paste from (in repo) | Paste to |
+|---|---|---|
+| **L4** universal | `core/OUTPUT_RULES.md` | claude.ai → Settings → Profile → Preferences |
+| **L2** Cowork global | `platforms/claude/cowork-global-instructions.md` | claude.ai → Cowork → Settings → Global Instructions |
+| **L1** per Cowork project | `platforms/claude/cowork-project-instructions.md` (tailored) | each Cowork project's instructions |
+| **L7** per Chat project | `platforms/claude/chat-project-instructions.md` (tailored) | each Chat project's instructions |
+| **L6** skills | `~/dev/skills-source/.build/*.skill` | claude.ai → Cowork → Customize → Skills → Install from file |
+| **MCP Connectors** | n/a | https://claude.ai/settings/connectors — re-auth Gmail, Drive, Calendar, Granola, Gamma, Stripe, Supabase |
+
+Then re-run `bash verify.sh` — the L3-global check confirms instruction files landed.
+
+### Heads-up
+
+1. **Don't reuse an old `~/.claude` from a Time Machine restore.** Let `bootstrap-macos.sh` + first `claude` run create fresh state. Old MCP tokens will fail silently and waste a debugging hour.
+2. **Run `verify.sh` twice — once after the scripts, once after the manual paste work.** The first run confirms the automated half; the second catches anything you missed in the UI.
 
 Hourly pipeline auto-refreshes L2 + L3-global + L7 cost tally. See [`platforms/claude/scripts/cumulative-cost-launchagent.sh`](platforms/claude/scripts/cumulative-cost-launchagent.sh).
 
