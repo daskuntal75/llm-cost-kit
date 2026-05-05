@@ -301,12 +301,26 @@
 
 <h2 id="quick-start">Quick start (Claude)</h2>
 
+<h3>Before you start — have these ready</h3>
+
+<table>
+<thead><tr><th>Need</th><th>Where to get it</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>Apple ID password</td><td>—</td><td>Mac initial setup, App Store, iCloud</td></tr>
+<tr><td>GitHub credentials</td><td>github.com</td><td><code>bootstrap-macos.sh</code> runs <code>gh auth login</code> (opens browser)</td></tr>
+<tr><td>Anthropic account</td><td>claude.ai</td><td>First <code>claude</code> CLI run does OAuth</td></tr>
+<tr><td>Anthropic Admin API key <em>(optional)</em></td><td>console.anthropic.com → Settings → Admin Keys</td><td>Enables <code>update-claude-cost --pull-api-spend</code></td></tr>
+<tr><td>Skills-source repo URL <em>(optional)</em></td><td>your private GitHub</td><td>The setup will offer to bootstrap <code>~/dev/skills-source/</code></td></tr>
+<tr><td>Your plan details</td><td>claude.ai/settings/billing</td><td>Need plan name, monthly fee, renewal date for step 4</td></tr>
+</tbody>
+</table>
+
 <h3>Fresh Mac (Mac Mini, new laptop) — ~30 minutes</h3>
 
-<pre><code># 1. Pre-flight installer for a bare Mac.
-#    Installs: Xcode CLT, Homebrew, node, jq, fswatch, git, gh, Claude Desktop.
-unzip claude-cost-kit.zip
-cd claude-cost-kit
+<pre><code># From the unzipped kit, or git clone https://github.com/daskuntal75/llm-cost-kit
+cd llm-cost-kit
+
+# 1. Pre-flight: brew, node, jq, fswatch, gh, Claude Desktop, gh auth login.
 bash bootstrap-macos.sh
 
 # 2. One-time Anthropic OAuth (browser opens automatically).
@@ -316,8 +330,8 @@ claude
 bash setup.sh
 source ~/.zshrc
 
-# 4. Initialize your cost file.
-update-claude-cost --plan max-5x --fee 100 --renews 2026-06-21
+# 4. Initialize your cost state.
+update-claude-cost --plan YOUR_PLAN --fee YOUR_MONTHLY_FEE --renews YYYY-MM-DD
 
 # 5. Verify everything: green/red dashboard.
 bash verify.sh</code></pre>
@@ -325,21 +339,33 @@ bash verify.sh</code></pre>
 <h3>Already-working Mac — ~10 minutes</h3>
 
 <pre><code># Skip step 1; the bootstrap is only needed for fresh installs.
-unzip claude-cost-kit.zip
-cd claude-cost-kit
+cd llm-cost-kit
 bash setup.sh
 source ~/.zshrc
 bash verify.sh</code></pre>
 
-<h3>Manual UI steps the scripts cannot do</h3>
+<h3>After the scripts — manual web-UI steps (~20 min, cannot be scripted)</h3>
 
-<pre><code># L4 → Settings → Profile → Preferences → paste core/OUTPUT_RULES.md
-# L2 → Cowork → Settings → Global Instructions → paste cowork-global-instructions.md
-# L1 → For each Cowork project → paste tailored cowork-project-instructions.md
-# L7 → For each Chat project → paste tailored chat-project-instructions.md
-# L6 → Cowork → Customize → Skills → install 3 .skill zips from .build/
-# MCP Connectors → https://claude.ai/settings/connectors
-#   Re-auth on each new machine: Gmail, Drive, Calendar, Granola, Gamma, Stripe, Supabase.</code></pre>
+<table>
+<thead><tr><th>Layer</th><th>Paste from (in repo)</th><th>Paste to</th></tr></thead>
+<tbody>
+<tr><td><strong>L4</strong> universal</td><td><code>core/OUTPUT_RULES.md</code></td><td>claude.ai → Settings → Profile → Preferences</td></tr>
+<tr><td><strong>L2</strong> Cowork global</td><td><code>platforms/claude/cowork-global-instructions.md</code></td><td>claude.ai → Cowork → Settings → Global Instructions</td></tr>
+<tr><td><strong>L1</strong> per Cowork project</td><td><code>platforms/claude/cowork-project-instructions.md</code> (tailored)</td><td>each Cowork project's instructions</td></tr>
+<tr><td><strong>L7</strong> per Chat project</td><td><code>platforms/claude/chat-project-instructions.md</code> (tailored)</td><td>each Chat project's instructions</td></tr>
+<tr><td><strong>L6</strong> skills</td><td><code>~/dev/skills-source/.build/*.skill</code></td><td>claude.ai → Cowork → Customize → Skills → Install from file</td></tr>
+<tr><td><strong>MCP Connectors</strong></td><td>n/a</td><td><a href="https://claude.ai/settings/connectors">claude.ai/settings/connectors</a> — re-auth Gmail, Drive, Calendar, Granola, Gamma, Stripe, Supabase</td></tr>
+</tbody>
+</table>
+
+<p>Then re-run <code>bash verify.sh</code> — the L3-global check confirms instruction files landed.</p>
+
+<h3>Heads-up</h3>
+
+<ol>
+<li><strong>Don't reuse an old <code>~/.claude</code> from a Time Machine restore.</strong> Let <code>bootstrap-macos.sh</code> + first <code>claude</code> run create fresh state. Old MCP tokens will fail silently and waste a debugging hour.</li>
+<li><strong>Run <code>verify.sh</code> twice</strong> — once after the scripts, once after the manual paste work. The first run confirms the automated half; the second catches anything you missed in the UI.</li>
+</ol>
 
 <h2 id="quick-start-other">Quick start (OpenAI / Gemini — 5 minutes)</h2>
 
