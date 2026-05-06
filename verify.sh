@@ -16,7 +16,7 @@ sec()  { printf "\n${BLUE}━━ %s ━━${NC}\n" "$1"; }
 
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║   LLM Cost Kit v3.7 — Verification Dashboard         ║"
+echo "║   LLM Cost Kit v3.8 — Verification Dashboard         ║"
 echo "╚══════════════════════════════════════════════════════╝"
 
 # ── Prereqs ──────────────────────────────────────────────────────────────────
@@ -118,8 +118,8 @@ else
   warn "skills-source not found at $SKILLS_DIR (optional, but recommended)"
 fi
 
-# ── Tool-use hygiene (v3.7) ─────────────────────────────────────────────────
-sec "Tool-use hygiene (v3.7)"
+# ── Tool-use hygiene (v3.7+) ────────────────────────────────────────────────
+sec "Tool-use hygiene (v3.8)"
 [[ -x "$HOME/.claude/hooks/tool-use-counter.sh" ]] && pass "PreToolUse counter hook present" || warn "PreToolUse counter hook missing — re-run setup.sh"
 [[ -x "$HOME/.claude/hooks/tool-use-reset.sh" ]]   && pass "Stop reset hook present"          || warn "Stop reset hook missing — re-run setup.sh"
 if [[ -f "$HOME/.claude/settings.json" ]] && command -v jq &>/dev/null; then
@@ -135,6 +135,16 @@ if [[ -f "$HOME/.claude/settings.json" ]] && command -v jq &>/dev/null; then
   fi
 fi
 [[ -x "$HOME/.local/bin/tool-use-stats" ]] && pass "tool-use-stats CLI installed" || warn "tool-use-stats CLI missing"
+if [[ -x "$HOME/.local/bin/tool-use-stats" ]]; then
+  if "$HOME/.local/bin/tool-use-stats" --lint &>/dev/null; then
+    pass "tool-use-stats --lint mode available (v3.8)"
+  else
+    warn "tool-use-stats does not support --lint — re-run setup.sh to update"
+  fi
+fi
+if [[ "${TOOL_USE_HARD_BLOCK:-0}" == "1" ]]; then
+  pass "TOOL_USE_HARD_BLOCK=1 (opt-in enforcement active)"
+fi
 if [[ -d "$HOME/.local/cost/tool-counts" ]]; then
   hist="$HOME/.local/cost/tool-counts/history.jsonl"
   if [[ -f "$hist" ]]; then

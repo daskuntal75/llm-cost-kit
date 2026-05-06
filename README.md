@@ -87,6 +87,13 @@ Then re-run `bash verify.sh` — the L3-global check confirms instruction files 
 
 Hourly pipeline auto-refreshes L2 + L3-global + L7 cost tally. See [`platforms/claude/scripts/cumulative-cost-launchagent.sh`](platforms/claude/scripts/cumulative-cost-launchagent.sh).
 
+## What's new in v3.8
+
+- **Pattern-aware warnings** — counter hook now emits 💡 nudges as anti-patterns happen: 3+ sequential `Bash` calls (chain candidate), 5+ sequential same-tool calls (batch candidate), turn ≥ 15 calls (delegate candidate). Each fires once per turn; no spam.
+- **`tool-use-stats --lint`** — retrospective scan of `history.jsonl` for rule-1/2/3 violations across the last 7 days, with estimated slot-waste figure. Run weekly to spot drift before it costs forced-continue turns.
+- **Opt-in hard enforcement** — `TOOL_USE_HARD_BLOCK=1` makes the PreToolUse hook return `permissionDecision: deny` at 85% of soft target. Claude Code blocks the tool call and feeds the reason back to the model, forcing a checkpoint or delegation.
+- **Automation-tier matrix** — `core/TOOL_USE_HYGIENE.md` now documents what's auto-preventable (rule 3 only, opt-in), auto-detectable (all three rules), and auto-fixable (none — they're prompt-level decisions). Sets honest expectations.
+
 ## What's new in v3.7
 
 - **Tool-use hygiene** — new fifth operational discipline alongside cache, instruction-layer, autonomy, and cost. PreToolUse hook (`~/.claude/hooks/tool-use-counter.sh`) counts every tool call per turn, emits stderr warnings at 70% and 85% of the soft target (default 35; hard cap ~50 enforced by Claude Code itself). Stop hook flushes per-turn buckets to `~/.local/cost/tool-counts/history.jsonl`. Hooks register automatically via `setup.sh`; `verify.sh` confirms wiring.

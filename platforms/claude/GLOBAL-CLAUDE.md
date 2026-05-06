@@ -1,5 +1,5 @@
 # Claude Code Global Config — ~/.claude/CLAUDE.md
-<!-- Version: 3.7 -->
+<!-- Version: 3.8 -->
 <!-- SETUP: Copy this file to ~/.claude/CLAUDE.md -->
 <!--   This file is loaded automatically in EVERY Claude Code session on your machine. -->
 <!--   Project-level CLAUDE.md files override these defaults when they conflict. -->
@@ -56,19 +56,30 @@ Never compromise a higher tier for a lower one.
 
 `/clear` wipes in-session buffer only. It does NOT touch memory files, CLAUDE.md, or anything on disk.
 
-## Tool-use hygiene (always active — kit v3.7+)
+## Tool-use hygiene (always active — kit v3.8+)
 
 The PreToolUse hook (`~/.claude/hooks/tool-use-counter.sh`) tracks calls per turn. Soft target: 35 (env: `TOOL_USE_SOFT_TARGET`); hard cap: ~50 (Claude Code system bound).
 
-When stderr shows `⚠️ Tool-use X/35 (70%)` or higher:
-1. **Stop** sequential tool calls.
-2. **Batch** remaining reads/greps into ONE message (parallel tool calls).
-3. **Chain** shell commands with `&&` instead of separate Bash calls.
-4. **Delegate** tool-heavy subtasks to a subagent — subagents have their own quota, so a 50-call exploration costs 1 main-session slot.
+### React to these stderr signals
 
-Never push past 85%. The forced "continue" turn costs a full cache miss + user friction. Cheaper to checkpoint and ask than to hit the cap.
+| Signal | Action |
+|---|---|
+| `⚠️  Tool-use X/35 (70%)` | Stop sequential calls; batch/chain remaining work |
+| `⚠️  Tool-use X/35 (85%)` | Checkpoint NOW — delegate or ask user. Past 85% the forced "continue" turn pays a full cache miss |
+| `💡 3+ sequential Bash calls` | Chain remaining shell commands with `&&` in a single Bash call |
+| `💡 5 sequential <Tool> calls in a row` | Batch in ONE message (parallel tool calls) — saves turn-overheads |
+| `💡 Turn at 15 calls` | If remaining work is a self-contained subtask, delegate to a subagent — fresh quota, costs 1 main-session slot |
 
-Inspect history: `tool-use-stats` (rolling 7d summary) · `--by-tool` · `--max` · `--tail`. Full rule-set: `core/TOOL_USE_HYGIENE.md`.
+### Four rules
+
+1. **Stop** sequential tool calls when warned.
+2. **Batch** parallel reads/greps in ONE message — 5 reads as 5 tool-calls in 1 turn beats 5 separate turns.
+3. **Chain** shell commands with `&&` — 3 Bash calls become 1 slot.
+4. **Delegate** tool-heavy subtasks (>10 calls on a self-contained job) to a subagent.
+
+Inspect history: `tool-use-stats` · `--by-tool` · `--max` · `--tail` · `--lint` (retrospective rule violations + slot-waste estimate). Full rule-set: `core/TOOL_USE_HYGIENE.md`.
+
+**Opt-in enforcement:** set `TOOL_USE_HARD_BLOCK=1` to make the hook return `permissionDecision: deny` at 85% — Claude Code will block the next tool call and feed back a directive to checkpoint or delegate. Useful when retrospective lint shows persistent rule-3 violations.
 
 ## Tone
 Direct. No hedging. If something is wrong, say so. If a better approach exists, flag it once — don't repeat it.
