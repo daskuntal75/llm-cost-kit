@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LLM Cost Kit v3.7 — Guide</title>
+<title>LLM Cost Kit v3.8 — Guide</title>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
@@ -106,13 +106,13 @@
 <body>
 <div class="container">
 
-<h1>LLM Cost Kit v3.7</h1>
+<h1>LLM Cost Kit v3.8</h1>
 <p class="subtitle">40–70% cost reduction for Claude, ChatGPT, and Gemini — without quality loss.</p>
 
 <div class="toc">
 <h3>Contents</h3>
 <ul>
-<li><a href="#what-changed">What's new in v3.7</a></li>
+<li><a href="#what-changed">What's new in v3.8</a></li>
 <li><a href="#tool-use-hygiene">Tool-use hygiene</a></li>
 <li><a href="#hierarchy">The 7-layer hierarchy</a></li>
 <li><a href="#decision-tree">Decision tree — where should this rule go?</a></li>
@@ -126,15 +126,16 @@
 </ul>
 </div>
 
-<h2 id="what-changed">What's new in v3.7</h2>
+<h2 id="what-changed">What's new in v3.8</h2>
 
 <table>
 <thead><tr><th>Addition</th><th>Why it matters</th></tr></thead>
 <tbody>
-<tr><td><strong>Tool-use hygiene</strong></td><td>New fifth operational discipline (alongside cache, instruction-layer, autonomy, cost). PreToolUse + Stop hooks count every tool call per turn and emit warnings at 70% / 85% of soft target. The cap itself is enforced by Claude Code; preventing the forced "continue" turn saves a full cache miss + user friction.</td></tr>
-<tr><td><strong><code>tool-use-stats</code> CLI</strong></td><td>Rolling 7-day summary of turn counts — p50, p90, max, % of turns over threshold. Surfaces drift before you hit the cap. Also <code>--by-tool</code>, <code>--max</code>, <code>--tail</code>.</td></tr>
-<tr><td><strong><code>core/TOOL_USE_HYGIENE.md</code></strong></td><td>Sibling to <code>CACHE_HYGIENE.md</code>. Three measured anti-patterns (sequential reads when parallel possible, individual Bash when chainable, refusing to delegate to subagents) and three rules with side-by-side bad/good examples.</td></tr>
-<tr><td><strong><code>GLOBAL-CLAUDE.md</code> rule</strong></td><td>Auto-loaded directive that tells the model how to react to threshold warnings: stop, batch, chain, or delegate.</td></tr>
+<tr><td><strong>Pattern-aware warnings</strong></td><td>Counter hook now emits 💡 nudges <em>as anti-patterns happen</em>: 3+ sequential <code>Bash</code> calls, 5+ sequential same-tool calls, or turn ≥ 15 calls. Once per turn, no spam. Catches drift in real time, not just at threshold.</td></tr>
+<tr><td><strong><code>tool-use-stats --lint</code></strong></td><td>Retrospective scan of <code>history.jsonl</code> over the last 7 days. Lists rule-1/2/3 violations with estimated slot-waste. Run weekly to spot drift trends.</td></tr>
+<tr><td><strong>Opt-in hard enforcement</strong></td><td><code>TOOL_USE_HARD_BLOCK=1</code> makes the PreToolUse hook return <code>permissionDecision: deny</code> at 85% of soft target. Claude Code blocks the tool call and feeds the reason back to the model, forcing a checkpoint or delegation. Use when retrospective lint shows persistent violations.</td></tr>
+<tr><td><strong>Automation-tier matrix</strong></td><td><code>core/TOOL_USE_HYGIENE.md</code> documents what's preventable (rule 3 only, opt-in), detectable (all three), and fixable (none — they're prompt-level decisions). Sets honest expectations.</td></tr>
+<tr><td><strong>Tool-use hygiene</strong> (v3.7 carry-over)</td><td>Fifth operational discipline alongside cache, instruction-layer, autonomy, cost. PreToolUse + Stop hooks count every tool call per turn, emit warnings at 70% / 85% of soft target. <code>tool-use-stats</code> CLI surfaces p50/p90/max. Framework: <code>core/TOOL_USE_HYGIENE.md</code>.</td></tr>
 <tr><td><strong><code>bootstrap-macos.sh</code></strong> (v3.6 carry-over)</td><td>Pre-flight installer for a bare Mac. Handles Xcode CLT, Homebrew, node, jq, fswatch, git, gh, Claude Desktop cask. Closes the prereq gap <code>setup.sh</code> previously assumed.</td></tr>
 <tr><td><strong><code>verify.sh</code></strong></td><td>Green/red dashboard for prereqs, auth state, cost-tracking init, LaunchAgent status, MCP configs, instruction-layer presence. Run anytime to confirm setup health.</td></tr>
 <tr><td><strong>MCP connector checklist</strong></td><td><code>setup.sh</code> tail and <code>verify.sh</code> now surface <a href="https://claude.ai/settings/connectors">claude.ai/settings/connectors</a> — the one step every fresh-machine setup forgets.</td></tr>
@@ -427,9 +428,12 @@ tool-use-stats              # rolling 7d: p50, p90, max, % over threshold
 tool-use-stats --by-tool    # which tools eat your budget
 tool-use-stats --max        # top 5 highest-tool-count turns
 tool-use-stats --tail       # last 20 turns
+tool-use-stats --lint       # rule-1/2/3 violations + estimated slot waste (v3.8)
 
-# Tune soft target (default 35):
-export TOOL_USE_SOFT_TARGET=25   # stronger nudges to delegate earlier</code></pre>
+# Tune in ~/.zshrc (defaults shown):
+export TOOL_USE_SOFT_TARGET=35   # warning thresholds: 70% (24), 85% (29)
+export TOOL_USE_DELEGATE_AT=15   # turn count that triggers "delegate" nudge
+export TOOL_USE_HARD_BLOCK=0     # set to 1 for opt-in deny at 85% (v3.8)</code></pre>
 
 <p>Full rule-set with bad/good examples: <code>core/TOOL_USE_HYGIENE.md</code>. The model-side directive is in <code>GLOBAL-CLAUDE.md</code> under "Tool-use hygiene".</p>
 
@@ -518,7 +522,7 @@ update-claude-cost --emit-l3-global    # push cost tally to Code CLAUDE.md (L3)<
 <p>CC BY-NC 4.0 — free to use, modify, and share for non-commercial purposes. Attribution required. See <a href="https://github.com/daskuntal75/llm-cost-kit/blob/main/LICENSE">LICENSE</a> for full terms.</p>
 
 <div class="footer">
-<p>LLM Cost Kit v3.7 · Built 2026 · <a href="https://github.com/daskuntal75/llm-cost-kit">github.com/daskuntal75/llm-cost-kit</a> · CC BY-NC 4.0</p>
+<p>LLM Cost Kit v3.8 · Built 2026 · <a href="https://github.com/daskuntal75/llm-cost-kit">github.com/daskuntal75/llm-cost-kit</a> · CC BY-NC 4.0</p>
 </div>
 
 </div>

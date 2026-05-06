@@ -93,6 +93,48 @@ tool-use-stats --tail       # last 20 turns
 
 If your p90 turn count is above 25 (≈70% of soft target), you're consistently close to the cap — apply rule 3 (delegate) more aggressively.
 
+## Automation tier (v3.8)
+
+What the kit can and cannot do for you. These rules govern *how the model decides to issue tool calls*; by the time a hook sees a call, the decision is already made. So:
+
+| Rule | Real-time prevention | Real-time detection + nudge | Retrospective lint |
+|---|---|---|---|
+| **1. Batch parallel** | ❌ impossible — call #1 has executed by the time #2 fires | ✅ `tool-use-counter.sh` warns on 5+ consecutive same-tool calls | ✅ `tool-use-stats --lint` |
+| **2. Chain Bash with `&&`** | ❌ same reason | ✅ warns on 3+ consecutive `Bash` calls | ✅ `tool-use-stats --lint` |
+| **3. Delegate to subagent** | ⚠️ optional via `TOOL_USE_HARD_BLOCK=1` (denies tool calls at 85% with a directive to checkpoint or delegate) | ✅ warns at `TOOL_USE_DELEGATE_AT` (default 15) | ✅ `tool-use-stats --lint` |
+
+**Default behavior:** advisory only — pattern detection emits 💡 stderr nudges, the model adapts on the next turn (or in the next response).
+
+**Opt-in enforcement:** set `TOOL_USE_HARD_BLOCK=1` in your shell env to make the PreToolUse hook return a `permissionDecision: deny` at 85% of soft target. Claude Code blocks the call and feeds the reason back to the model, which then must checkpoint or delegate. Use sparingly — denying mid-task can break in-flight work if the threshold is wrong for your workflow.
+
+```bash
+# Tune in ~/.zshrc (defaults shown):
+export TOOL_USE_SOFT_TARGET=35     # warning thresholds: 70% (24), 85% (29)
+export TOOL_USE_DELEGATE_AT=15     # turn count that triggers "delegate" nudge
+export TOOL_USE_HARD_BLOCK=0       # set to 1 for opt-in deny at 85%
+```
+
+### Retrospective coaching: `tool-use-stats --lint`
+
+Scans `history.jsonl` and reports rule-1/2/3 violations from past turns, with an estimated slot-waste figure:
+
+```
+Lint findings — last 7 days
+  Rule 1 — Batch parallel candidates: 3 turns
+  Rule 2 — Chain candidates: 5 turns
+  Rule 3 — Delegate candidates: 1 turn
+  Estimated slot waste: ~25 main-session tool slots
+  (i.e., that many calls could have been collapsed via batching/chaining/delegation)
+```
+
+Run weekly. If slot-waste is climbing, the model is drifting from the rules — tighten `TOOL_USE_SOFT_TARGET` or enable `TOOL_USE_HARD_BLOCK`.
+
+### What we explicitly will NOT automate
+
+- **Auto-merging** of sequential calls. Impossible without rewriting model output, which would break the protocol.
+- **Auto-spawning** subagents. The hook can't generate subagent invocations on the model's behalf — that has to come from the model itself.
+- **Pattern-matching on Bash command content** to guess "chainability." Too brittle; false positives would erode trust in the warnings.
+
 ## Soft vs. hard target
 
 | Target | Value | Source |

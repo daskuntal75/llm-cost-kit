@@ -15,7 +15,7 @@ info() { printf "${BLUE}  →${NC} %s\n" "$1"; }
 
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║   LLM Cost Kit v3.7 — Setup                          ║"
+echo "║   LLM Cost Kit v3.8 — Setup                          ║"
 echo "║   (Claude Chat + Cowork + Code)                      ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""

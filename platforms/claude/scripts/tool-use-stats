@@ -7,6 +7,7 @@
 #   tool-use-stats --tail       # last 20 turns
 #   tool-use-stats --by-tool    # tool-call distribution
 #   tool-use-stats --max        # top 5 highest-tool-count turns
+#   tool-use-stats --lint       # rule 1/2/3 violations + estimated slot waste
 # =============================================================================
 
 set -e
@@ -29,6 +30,7 @@ while [[ $# -gt 0 ]]; do
     --tail)    MODE="tail"; shift ;;
     --by-tool) MODE="by-tool"; shift ;;
     --max)     MODE="max"; shift ;;
+    --lint)    MODE="lint"; shift ;;
     -h|--help)
       sed -n '3,11p' "$0" | sed 's/^# \?//'
       exit 0 ;;
@@ -80,5 +82,80 @@ case "$MODE" in
   max)
     echo "Top 5 highest-tool-count turns:"
     jq -s 'sort_by(-.count) | .[0:5] | .[] | "  \(.ts)  count=\(.count)  top=\(.tools | to_entries | sort_by(-.value) | .[0:3] | map("\(.key):\(.value)") | join(","))"' "$HIST" -r
+    ;;
+  lint)
+    echo "Lint findings — last $DAYS days (heuristics; may have false positives)"
+    echo ""
+    jq -s --arg cutoff "$CUTOFF" '
+      map(select(.ts >= $cutoff))
+      | (length) as $n
+      | if $n == 0 then {empty: true}
+        else {
+          empty: false,
+          turns: $n,
+          batch: [
+            .[] | select(
+              (.tools // {}) | to_entries | map(.value) | max >= 5
+            ) | {
+              ts: .ts,
+              tool: ((.tools // {}) | to_entries | sort_by(-.value) | .[0].key),
+              count: ((.tools // {}) | to_entries | sort_by(-.value) | .[0].value),
+              total: .count
+            }
+          ],
+          chain: [
+            .[] | select((.tools.Bash // 0) >= 3) | {
+              ts: .ts,
+              bash_count: (.tools.Bash // 0),
+              total: .count
+            }
+          ],
+          delegate: [
+            .[] | select(.count >= 15) | {ts: .ts, count: .count, top: ((.tools // {}) | to_entries | sort_by(-.value) | .[0:3] | map("\(.key):\(.value)") | join(","))}
+          ]
+        }
+        end
+    ' "$HIST" > /tmp/.tool-use-lint.json
+
+    EMPTY=$(jq -r '.empty' /tmp/.tool-use-lint.json)
+    if [[ "$EMPTY" == "true" ]]; then
+      echo "  (no turns in window)"
+      rm -f /tmp/.tool-use-lint.json
+      exit 0
+    fi
+
+    BATCH_N=$(jq -r '.batch | length' /tmp/.tool-use-lint.json)
+    CHAIN_N=$(jq -r '.chain | length' /tmp/.tool-use-lint.json)
+    DELE_N=$(jq -r '.delegate | length' /tmp/.tool-use-lint.json)
+
+    echo "  Rule 1 — Batch parallel candidates (5+ same-tool calls in one turn): $BATCH_N turn(s)"
+    if (( BATCH_N > 0 )); then
+      jq -r '.batch[] | "    \(.ts)  \(.tool):\(.count)  (turn total: \(.total))"' /tmp/.tool-use-lint.json | head -10
+    fi
+    echo ""
+    echo "  Rule 2 — Chain candidates (3+ Bash calls in one turn): $CHAIN_N turn(s)"
+    if (( CHAIN_N > 0 )); then
+      jq -r '.chain[] | "    \(.ts)  Bash:\(.bash_count)  (turn total: \(.total))"' /tmp/.tool-use-lint.json | head -10
+    fi
+    echo ""
+    echo "  Rule 3 — Delegate candidates (15+ tool calls in one turn): $DELE_N turn(s)"
+    if (( DELE_N > 0 )); then
+      jq -r '.delegate[] | "    \(.ts)  count=\(.count)  top=\(.top)"' /tmp/.tool-use-lint.json | head -10
+    fi
+
+    # Estimated slot waste (heuristic):
+    #   batch: 5+ same-tool means at least 4 of them could have been parallel — saves ~(N-1)*0.8 slots in cache-load overhead
+    #   chain: 3+ Bash means at least 2 could have been chained — saves (N-1) slots directly
+    #   delegate: 15+ count means delegating saves (count - 1) main-session slots
+    WASTE=$(jq '
+      ([.batch[].count] | map(. - 1) | add // 0) +
+      ([.chain[].bash_count] | map(. - 1) | add // 0) +
+      ([.delegate[].count] | map(. - 1) | add // 0)
+    ' /tmp/.tool-use-lint.json)
+    echo ""
+    echo "  Estimated slot waste over window: ~$WASTE main-session tool slots"
+    echo "  (i.e., that many calls could have been collapsed via batching/chaining/delegation)"
+
+    rm -f /tmp/.tool-use-lint.json
     ;;
 esac

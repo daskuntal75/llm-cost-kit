@@ -1,6 +1,6 @@
 #!/bin/zsh
 # =============================================================================
-# LLM Cost Kit v3.6 — Post-Setup Verification
+# LLM Cost Kit v3.8 — Post-Setup Verification
 # Usage: bash verify.sh
 #
 # Run this AFTER bootstrap-macos.sh + setup.sh + first-run auth to confirm
@@ -9,14 +9,18 @@
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BLUE='\033[0;34m'; NC='\033[0m'
 PASS=0; FAIL=0; WARN_COUNT=0
-pass() { printf "${GREEN}  ✓${NC} %s\n" "$1"; ((PASS++)); }
-fail() { printf "${RED}  ✗${NC} %s\n" "$1"; ((FAIL++)); }
-warn() { printf "${YELLOW}  ⚠${NC} %s\n" "$1"; ((WARN_COUNT++)); }
+# NOTE: counters use PASS=$((PASS+1)) instead of ((PASS++)) on purpose.
+# ((var++)) returns the *pre-increment* value, so when PASS starts at 0 the
+# first call exits non-zero — which makes `cmd && pass "x" || fail "y"` patterns
+# fire BOTH branches. POSIX `var=$((var+1))` always exits 0.
+pass() { printf "${GREEN}  ✓${NC} %s\n" "$1"; PASS=$((PASS+1)); }
+fail() { printf "${RED}  ✗${NC} %s\n" "$1"; FAIL=$((FAIL+1)); }
+warn() { printf "${YELLOW}  ⚠${NC} %s\n" "$1"; WARN_COUNT=$((WARN_COUNT+1)); }
 sec()  { printf "\n${BLUE}━━ %s ━━${NC}\n" "$1"; }
 
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║   LLM Cost Kit v3.7 — Verification Dashboard         ║"
+echo "║   LLM Cost Kit v3.8 — Verification Dashboard         ║"
 echo "╚══════════════════════════════════════════════════════╝"
 
 # ── Prereqs ──────────────────────────────────────────────────────────────────
@@ -53,17 +57,27 @@ fi
 sec "Cost tracking"
 if [[ -x "$HOME/.local/bin/update-claude-cost" ]]; then
   pass "update-claude-cost installed at ~/.local/bin/"
-  if [[ -f "$HOME/.local/cost/state.json" ]]; then
-    plan=$(jq -r '.subscription.plan // "?"' "$HOME/.local/cost/state.json" 2>/dev/null)
-    fee=$(jq -r '.subscription.fee_usd // "?"' "$HOME/.local/cost/state.json" 2>/dev/null)
-    renews=$(jq -r '.subscription.renews_on // "?"' "$HOME/.local/cost/state.json" 2>/dev/null)
+  # Check both canonical and legacy state-file locations
+  STATE=""
+  for cand in "$HOME/.claude/cumulative-cost.json" "$HOME/.local/cost/state.json"; do
+    if [[ -f "$cand" ]]; then STATE="$cand"; break; fi
+  done
+  if [[ -n "$STATE" ]]; then
+    plan=$(jq -r '.subscription.plan // "?"' "$STATE" 2>/dev/null)
+    fee=$(jq -r '.subscription.fee_usd // "?"' "$STATE" 2>/dev/null)
+    renews=$(jq -r '.subscription.renews_on // "?"' "$STATE" 2>/dev/null)
     if [[ "$plan" == "?" || "$plan" == "null" ]]; then
-      warn "cost state.json exists but plan is unset — run: update-claude-cost --plan PLAN --fee FEE --renews YYYY-MM-DD"
+      warn "cost state at $STATE has plan unset — run: update-claude-cost --plan PLAN --fee FEE --renews YYYY-MM-DD"
     else
-      pass "cost state initialized — plan=$plan  fee=\$$fee  renews=$renews"
+      pass "cost state initialized — plan=$plan  fee=\$$fee  renews=$renews  (file: $(basename "$STATE"))"
+    fi
+    if find "$STATE" -mtime -1 &>/dev/null; then
+      pass "cost state refreshed within last 24h"
+    else
+      warn "cost state >24h stale — LaunchAgent may not be running. Run: launchctl list | grep cost"
     fi
   else
-    warn "~/.local/cost/state.json missing — run update-claude-cost to initialize"
+    warn "cost state missing — run: update-claude-cost --plan PLAN --fee FEE --renews YYYY-MM-DD"
   fi
 else
   fail "update-claude-cost not in ~/.local/bin/ — re-run setup.sh and accept the cumulative-tracking prompt"
@@ -71,9 +85,17 @@ fi
 
 # ── Hourly LaunchAgent ───────────────────────────────────────────────────────
 sec "Hourly cost pipeline"
-PLIST="$HOME/Library/LaunchAgents/cumulative-cost-launchagent.plist"
-if [[ -f "$PLIST" ]]; then
-  if launchctl list 2>/dev/null | grep -q cumulative-cost; then
+# Plist may use any of these names depending on kit version / install path
+PLIST=""
+for cand in \
+    "$HOME/Library/LaunchAgents/com.kuntal.cumulative-cost.plist" \
+    "$HOME/Library/LaunchAgents/cumulative-cost-launchagent.plist" \
+    "$HOME/Library/LaunchAgents/com.daskuntal.cumulative-cost.plist"; do
+  [[ -f "$cand" ]] && { PLIST="$cand"; break; }
+done
+if [[ -n "$PLIST" ]]; then
+  pass "LaunchAgent plist found: $(basename "$PLIST")"
+  if launchctl list 2>/dev/null | grep -q -i cumulative-cost; then
     pass "LaunchAgent loaded and running"
   else
     warn "LaunchAgent plist present but not loaded — run: launchctl load $PLIST"
@@ -118,8 +140,8 @@ else
   warn "skills-source not found at $SKILLS_DIR (optional, but recommended)"
 fi
 
-# ── Tool-use hygiene (v3.7) ─────────────────────────────────────────────────
-sec "Tool-use hygiene (v3.7)"
+# ── Tool-use hygiene (v3.7+) ────────────────────────────────────────────────
+sec "Tool-use hygiene (v3.8)"
 [[ -x "$HOME/.claude/hooks/tool-use-counter.sh" ]] && pass "PreToolUse counter hook present" || warn "PreToolUse counter hook missing — re-run setup.sh"
 [[ -x "$HOME/.claude/hooks/tool-use-reset.sh" ]]   && pass "Stop reset hook present"          || warn "Stop reset hook missing — re-run setup.sh"
 if [[ -f "$HOME/.claude/settings.json" ]] && command -v jq &>/dev/null; then
@@ -135,6 +157,16 @@ if [[ -f "$HOME/.claude/settings.json" ]] && command -v jq &>/dev/null; then
   fi
 fi
 [[ -x "$HOME/.local/bin/tool-use-stats" ]] && pass "tool-use-stats CLI installed" || warn "tool-use-stats CLI missing"
+if [[ -x "$HOME/.local/bin/tool-use-stats" ]]; then
+  if "$HOME/.local/bin/tool-use-stats" --lint &>/dev/null; then
+    pass "tool-use-stats --lint mode available (v3.8)"
+  else
+    warn "tool-use-stats does not support --lint — re-run setup.sh to update"
+  fi
+fi
+if [[ "${TOOL_USE_HARD_BLOCK:-0}" == "1" ]]; then
+  pass "TOOL_USE_HARD_BLOCK=1 (opt-in enforcement active)"
+fi
 if [[ -d "$HOME/.local/cost/tool-counts" ]]; then
   hist="$HOME/.local/cost/tool-counts/history.jsonl"
   if [[ -f "$hist" ]]; then
