@@ -1,0 +1,84 @@
+#!/bin/zsh
+# =============================================================================
+# LLM Cost Kit v3.7 — Tool-Use Stats CLI
+# Usage:
+#   tool-use-stats              # rolling-window summary (last 7 days)
+#   tool-use-stats --days N     # last N days
+#   tool-use-stats --tail       # last 20 turns
+#   tool-use-stats --by-tool    # tool-call distribution
+#   tool-use-stats --max        # top 5 highest-tool-count turns
+# =============================================================================
+
+set -e
+
+HIST="$HOME/.local/cost/tool-counts/history.jsonl"
+SOFT="${TOOL_USE_SOFT_TARGET:-35}"
+
+if [[ ! -f "$HIST" ]]; then
+  echo "No tool-use history yet at $HIST"
+  echo "Hooks will populate this after your next assistant turn."
+  exit 0
+fi
+
+MODE="${1:-summary}"
+DAYS=7
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --days)    DAYS="$2"; MODE="summary"; shift 2 ;;
+    --tail)    MODE="tail"; shift ;;
+    --by-tool) MODE="by-tool"; shift ;;
+    --max)     MODE="max"; shift ;;
+    -h|--help)
+      sed -n '3,11p' "$0" | sed 's/^# \?//'
+      exit 0 ;;
+    *) shift ;;
+  esac
+done
+
+# Compute cutoff timestamp (BSD/GNU date compatible)
+if date -u -v-7d +%Y-%m-%dT%H:%M:%SZ &>/dev/null; then
+  CUTOFF=$(date -u -v-${DAYS}d +%Y-%m-%dT%H:%M:%SZ)
+else
+  CUTOFF=$(date -u -d "${DAYS} days ago" +%Y-%m-%dT%H:%M:%SZ)
+fi
+
+case "$MODE" in
+  summary)
+    echo "Tool-use summary — last $DAYS days (soft target: $SOFT)"
+    echo ""
+    jq -s --arg cutoff "$CUTOFF" --argjson soft "$SOFT" '
+      map(select(.ts >= $cutoff))
+      | (length) as $n
+      | if $n == 0 then "  (no turns in window)"
+        else
+          (map(.count) | sort) as $c
+          | (($c | add) / $n | floor) as $avg
+          | $c[($n / 2 | floor)] as $p50
+          | $c[(($n * 90 / 100) | floor)] as $p90
+          | ($c | last) as $max
+          | (map(select(.count >= ($soft * 70 / 100))) | length) as $warn70
+          | (map(select(.count >= ($soft * 85 / 100))) | length) as $warn85
+          | "  turns:        \($n)\n" +
+            "  avg / p50:    \($avg) / \($p50)\n" +
+            "  p90:          \($p90)\n" +
+            "  max:          \($max)\n" +
+            "  ≥ 70% soft:   \($warn70)  (\(($warn70 * 100 / $n) | floor)% of turns)\n" +
+            "  ≥ 85% soft:   \($warn85)  (\(($warn85 * 100 / $n) | floor)% of turns)"
+        end
+    ' "$HIST" -r
+    ;;
+  tail)
+    echo "Last 20 turns:"
+    tail -n 20 "$HIST" | jq -r '"\(.ts)  count=\(.count)  top=\(.tools | to_entries | sort_by(-.value) | .[0:3] | map("\(.key):\(.value)") | join(","))"'
+    ;;
+  by-tool)
+    echo "Tool-call distribution (all time):"
+    jq -s 'map(.tools // {}) | reduce .[] as $t ({}; reduce ($t | to_entries[]) as $kv (.; .[$kv.key] = ((.[$kv.key] // 0) + $kv.value)))' "$HIST" \
+      | jq -r 'to_entries | sort_by(-.value) | .[] | "  \(.key | (. + "                    ")[0:20])\(.value)"'
+    ;;
+  max)
+    echo "Top 5 highest-tool-count turns:"
+    jq -s 'sort_by(-.count) | .[0:5] | .[] | "  \(.ts)  count=\(.count)  top=\(.tools | to_entries | sort_by(-.value) | .[0:3] | map("\(.key):\(.value)") | join(","))"' "$HIST" -r
+    ;;
+esac

@@ -87,12 +87,14 @@ Then re-run `bash verify.sh` — the L3-global check confirms instruction files 
 
 Hourly pipeline auto-refreshes L2 + L3-global + L7 cost tally. See [`platforms/claude/scripts/cumulative-cost-launchagent.sh`](platforms/claude/scripts/cumulative-cost-launchagent.sh).
 
-## What's new in v3.6
+## What's new in v3.7
 
-- **`bootstrap-macos.sh`** — pre-flight installer for a bare Mac. Handles Xcode CLT, Homebrew, node, jq, fswatch, git, gh, Claude Desktop cask. Idempotent.
-- **`verify.sh`** — green/red dashboard for prereqs, auth state, cost-tracking init, LaunchAgent status, MCP configs, instruction-layer presence. Run anytime to confirm setup health.
-- **`setup.sh` pre-flight check** — fails fast with a hint to run `bootstrap-macos.sh` if `node`/`jq` are missing.
-- **First-run summary** now lists MCP connector re-auth (Gmail/Drive/Calendar/Granola/Gamma/Stripe/Supabase) at https://claude.ai/settings/connectors.
+- **Tool-use hygiene** — new fifth operational discipline alongside cache, instruction-layer, autonomy, and cost. PreToolUse hook (`~/.claude/hooks/tool-use-counter.sh`) counts every tool call per turn, emits stderr warnings at 70% and 85% of the soft target (default 35; hard cap ~50 enforced by Claude Code itself). Stop hook flushes per-turn buckets to `~/.local/cost/tool-counts/history.jsonl`. Hooks register automatically via `setup.sh`; `verify.sh` confirms wiring.
+- **`tool-use-stats` CLI** — rolling-window summary of turn counts (`tool-use-stats`, `--by-tool`, `--max`, `--tail`). Surfaces p50/p90/max and percentage of turns ≥70%/≥85% so you can see drift before you hit the cap.
+- **`core/TOOL_USE_HYGIENE.md`** — sibling rule-set to `CACHE_HYGIENE.md`. Three measured anti-patterns (sequential reads when parallel possible, individual Bash when chainable, refusing to delegate to subagents) plus three rules. The forced "continue" turn after hitting the cap typically costs a full cache miss; preventing it is genuinely cost-saving, not just UX.
+- **`GLOBAL-CLAUDE.md` rule** — auto-loaded directive that tells the model how to react to threshold warnings: stop, batch, chain, or delegate.
+
+## What's new in v3.6
 
 ## What's new in v3.5.2
 
@@ -132,6 +134,9 @@ Full framework with impact analysis: [`docs/responsible-ai-cost-framework.md`](d
 | `emit-l7-helper.py` | Emits live cost tally to L7 (Chat), L2 (Cowork), L3-global (Code) |
 | `cache-efficiency` | Compute amortization ratio from ccusage data |
 | `admin-api-pull.py` | Pull API pool state via Anthropic Admin API |
+| `tool-use-stats` | Rolling-window summary of tool-use-counter history (v3.7) |
+| `hooks/tool-use-counter.sh` | PreToolUse hook — counts calls + threshold warnings (v3.7) |
+| `hooks/tool-use-reset.sh` | Stop hook — flushes per-turn bucket to history (v3.7) |
 
 ## Platform comparison — Claude vs OpenAI vs Gemini
 
