@@ -15,7 +15,7 @@ info() { printf "${BLUE}  →${NC} %s\n" "$1"; }
 
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║   LLM Cost Kit v3.6 — Setup                          ║"
+echo "║   LLM Cost Kit v3.7 — Setup                          ║"
 echo "║   (Claude Chat + Cowork + Code)                      ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""
@@ -102,6 +102,46 @@ mkdir -p ~/.claude/mcp-configs
 if [[ -d "$SCRIPT_DIR/platforms/claude/mcp-configs" ]]; then
   cp "$SCRIPT_DIR/platforms/claude/mcp-configs/"*.json ~/.claude/mcp-configs/ 2>/dev/null || true
   ok "MCP configs deployed to ~/.claude/mcp-configs/"
+fi
+
+# ── Tool-use hygiene hooks (v3.7) ───────────────────────────────────────────
+mkdir -p ~/.claude/hooks
+if [[ -d "$SCRIPT_DIR/platforms/claude/hooks" ]]; then
+  cp "$SCRIPT_DIR/platforms/claude/hooks/"*.sh ~/.claude/hooks/ 2>/dev/null || true
+  chmod +x ~/.claude/hooks/*.sh 2>/dev/null || true
+  ok "Tool-use hooks deployed to ~/.claude/hooks/"
+fi
+
+# Idempotently register hooks in ~/.claude/settings.json
+SETTINGS=~/.claude/settings.json
+[[ -f "$SETTINGS" ]] || echo '{}' > "$SETTINGS"
+if command -v jq &>/dev/null; then
+  HOOK_CMD="$HOME/.claude/hooks/tool-use-counter.sh"
+  RESET_CMD="$HOME/.claude/hooks/tool-use-reset.sh"
+  jq --arg cmd "$HOOK_CMD" --arg reset "$RESET_CMD" '
+    .hooks //= {}
+    | .hooks.PreToolUse = (
+        ((.hooks.PreToolUse // [])
+         | map(select((.hooks // []) | map(.command) | index($cmd) | not)))
+        + [{matcher: "*", hooks: [{type:"command", command:$cmd}]}]
+      )
+    | .hooks.Stop = (
+        ((.hooks.Stop // [])
+         | map(select((.hooks // []) | map(.command) | index($reset) | not)))
+        + [{hooks: [{type:"command", command:$reset}]}]
+      )
+  ' "$SETTINGS" > "$SETTINGS.tmp" && mv "$SETTINGS.tmp" "$SETTINGS"
+  ok "Hooks registered in ~/.claude/settings.json"
+else
+  warn "jq missing — cannot auto-register hooks. Run bootstrap-macos.sh first."
+fi
+
+# Install tool-use-stats CLI
+if [[ -f "$SCRIPT_DIR/platforms/claude/scripts/tool-use-stats" ]]; then
+  mkdir -p ~/.local/bin
+  cp "$SCRIPT_DIR/platforms/claude/scripts/tool-use-stats" ~/.local/bin/tool-use-stats
+  chmod +x ~/.local/bin/tool-use-stats
+  ok "tool-use-stats installed at ~/.local/bin/"
 fi
 
 # Shell aliases

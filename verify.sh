@@ -16,7 +16,7 @@ sec()  { printf "\n${BLUE}━━ %s ━━${NC}\n" "$1"; }
 
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║   LLM Cost Kit v3.6 — Verification Dashboard         ║"
+echo "║   LLM Cost Kit v3.7 — Verification Dashboard         ║"
 echo "╚══════════════════════════════════════════════════════╝"
 
 # ── Prereqs ──────────────────────────────────────────────────────────────────
@@ -116,6 +116,33 @@ if [[ -d "$SKILLS_DIR" ]]; then
   fi
 else
   warn "skills-source not found at $SKILLS_DIR (optional, but recommended)"
+fi
+
+# ── Tool-use hygiene (v3.7) ─────────────────────────────────────────────────
+sec "Tool-use hygiene (v3.7)"
+[[ -x "$HOME/.claude/hooks/tool-use-counter.sh" ]] && pass "PreToolUse counter hook present" || warn "PreToolUse counter hook missing — re-run setup.sh"
+[[ -x "$HOME/.claude/hooks/tool-use-reset.sh" ]]   && pass "Stop reset hook present"          || warn "Stop reset hook missing — re-run setup.sh"
+if [[ -f "$HOME/.claude/settings.json" ]] && command -v jq &>/dev/null; then
+  if jq -e '[.hooks.PreToolUse[]?.hooks[]?.command] | map(strings) | map(test("tool-use-counter\\.sh$")) | any' "$HOME/.claude/settings.json" &>/dev/null; then
+    pass "PreToolUse hook registered in settings.json"
+  else
+    warn "PreToolUse hook not registered — re-run setup.sh"
+  fi
+  if jq -e '[.hooks.Stop[]?.hooks[]?.command] | map(strings) | map(test("tool-use-reset\\.sh$")) | any' "$HOME/.claude/settings.json" &>/dev/null; then
+    pass "Stop hook registered in settings.json"
+  else
+    warn "Stop hook not registered — re-run setup.sh"
+  fi
+fi
+[[ -x "$HOME/.local/bin/tool-use-stats" ]] && pass "tool-use-stats CLI installed" || warn "tool-use-stats CLI missing"
+if [[ -d "$HOME/.local/cost/tool-counts" ]]; then
+  hist="$HOME/.local/cost/tool-counts/history.jsonl"
+  if [[ -f "$hist" ]]; then
+    turns=$(wc -l < "$hist" | tr -d ' ')
+    pass "tool-use history present ($turns turns logged)"
+  else
+    warn "tool-counts dir exists but no history.jsonl yet (will populate on next turn)"
+  fi
 fi
 
 # ── Manual web-UI checklist ──────────────────────────────────────────────────

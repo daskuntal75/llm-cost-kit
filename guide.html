@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LLM Cost Kit v3.6 — Guide</title>
+<title>LLM Cost Kit v3.7 — Guide</title>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
@@ -106,13 +106,14 @@
 <body>
 <div class="container">
 
-<h1>LLM Cost Kit v3.6</h1>
+<h1>LLM Cost Kit v3.7</h1>
 <p class="subtitle">40–70% cost reduction for Claude, ChatGPT, and Gemini — without quality loss.</p>
 
 <div class="toc">
 <h3>Contents</h3>
 <ul>
-<li><a href="#what-changed">What's new in v3.6</a></li>
+<li><a href="#what-changed">What's new in v3.7</a></li>
+<li><a href="#tool-use-hygiene">Tool-use hygiene</a></li>
 <li><a href="#hierarchy">The 7-layer hierarchy</a></li>
 <li><a href="#decision-tree">Decision tree — where should this rule go?</a></li>
 <li><a href="#quick-start">Quick start (Claude)</a></li>
@@ -125,12 +126,16 @@
 </ul>
 </div>
 
-<h2 id="what-changed">What's new in v3.6</h2>
+<h2 id="what-changed">What's new in v3.7</h2>
 
 <table>
 <thead><tr><th>Addition</th><th>Why it matters</th></tr></thead>
 <tbody>
-<tr><td><strong><code>bootstrap-macos.sh</code></strong></td><td>Pre-flight installer for a bare Mac (Mac Mini, new laptop). Handles Xcode CLT, Homebrew, node, jq, fswatch, git, gh, Claude Desktop cask. Closes the prereq gap <code>setup.sh</code> previously assumed.</td></tr>
+<tr><td><strong>Tool-use hygiene</strong></td><td>New fifth operational discipline (alongside cache, instruction-layer, autonomy, cost). PreToolUse + Stop hooks count every tool call per turn and emit warnings at 70% / 85% of soft target. The cap itself is enforced by Claude Code; preventing the forced "continue" turn saves a full cache miss + user friction.</td></tr>
+<tr><td><strong><code>tool-use-stats</code> CLI</strong></td><td>Rolling 7-day summary of turn counts — p50, p90, max, % of turns over threshold. Surfaces drift before you hit the cap. Also <code>--by-tool</code>, <code>--max</code>, <code>--tail</code>.</td></tr>
+<tr><td><strong><code>core/TOOL_USE_HYGIENE.md</code></strong></td><td>Sibling to <code>CACHE_HYGIENE.md</code>. Three measured anti-patterns (sequential reads when parallel possible, individual Bash when chainable, refusing to delegate to subagents) and three rules with side-by-side bad/good examples.</td></tr>
+<tr><td><strong><code>GLOBAL-CLAUDE.md</code> rule</strong></td><td>Auto-loaded directive that tells the model how to react to threshold warnings: stop, batch, chain, or delegate.</td></tr>
+<tr><td><strong><code>bootstrap-macos.sh</code></strong> (v3.6 carry-over)</td><td>Pre-flight installer for a bare Mac. Handles Xcode CLT, Homebrew, node, jq, fswatch, git, gh, Claude Desktop cask. Closes the prereq gap <code>setup.sh</code> previously assumed.</td></tr>
 <tr><td><strong><code>verify.sh</code></strong></td><td>Green/red dashboard for prereqs, auth state, cost-tracking init, LaunchAgent status, MCP configs, instruction-layer presence. Run anytime to confirm setup health.</td></tr>
 <tr><td><strong>MCP connector checklist</strong></td><td><code>setup.sh</code> tail and <code>verify.sh</code> now surface <a href="https://claude.ai/settings/connectors">claude.ai/settings/connectors</a> — the one step every fresh-machine setup forgets.</td></tr>
 <tr><td><strong>Cache hygiene rule 4</strong> (carry-over from v3.5.2)</td><td>CI/E2E retry loop identified as the highest-cost anti-pattern. One debugging day, 8 micro-sessions = $17.83 at 100% wasted writes.</td></tr>
@@ -379,6 +384,55 @@ unzip gemini-cost-kit.zip
 # 1. Gemini app → Settings → Personal Context → paste OUTPUT_RULES.md
 # 2. (optional) Build Gems using GEM_INSTRUCTIONS.md</code></pre>
 
+<h2 id="tool-use-hygiene">Tool-use hygiene</h2>
+
+<p>Claude Code enforces a per-turn tool-use cap (currently ~50 calls, undocumented). When you hit it, the model stops mid-task and the forced <em>continue</em> turn typically pays a full cache miss (5-min TTL has lapsed) plus adds user friction. The cap is non-negotiable; what we control is how often we approach it.</p>
+
+<h3>Three measured anti-patterns</h3>
+
+<table>
+<thead><tr><th>Anti-pattern</th><th>What it looks like</th><th>Slot waste</th></tr></thead>
+<tbody>
+<tr><td><strong>Sequential reads when parallel possible</strong></td><td>Reading 5 files in 5 separate turns instead of one turn with 5 parallel <code>Read</code> calls</td><td>4 turn-overheads (cache reloads)</td></tr>
+<tr><td><strong>Individual Bash when chainable</strong></td><td><code>cd /x</code> → <code>ls</code> → <code>git status</code> as 3 calls instead of <code>cd /x &amp;&amp; ls &amp;&amp; git status</code></td><td>2 tool slots + 2 process spawns</td></tr>
+<tr><td><strong>Refusing to delegate</strong></td><td>50-call codebase exploration in main session vs. spawning a subagent</td><td>Whole tool quota — subagents have their own</td></tr>
+</tbody>
+</table>
+
+<h3>Three rules</h3>
+
+<ol>
+<li><strong>Batch parallel tool calls</strong> in a single message. Claude Code runs them concurrently and counts them within the same turn budget; you save the per-turn cache-load overhead.</li>
+<li><strong>Chain shell commands with <code>&amp;&amp;</code></strong>. Three Bash calls = three slots. One chained call = one. Reserve separate calls for genuinely independent commands you need to inspect between.</li>
+<li><strong>Delegate tool-heavy subtasks to a subagent</strong>. Subagents run with a fresh quota — a 50-call exploration delegated costs 1 main-session slot. Rule of thumb: if you're about to make &gt;10 sequential calls on a self-contained subtask, spawn a subagent instead.</li>
+</ol>
+
+<h3>Wiring</h3>
+
+<pre><code># Hooks register automatically by setup.sh in ~/.claude/settings.json:
+{
+  "hooks": {
+    "PreToolUse": [{
+      "matcher": "*",
+      "hooks": [{"type":"command","command":"~/.claude/hooks/tool-use-counter.sh"}]
+    }],
+    "Stop": [{
+      "hooks": [{"type":"command","command":"~/.claude/hooks/tool-use-reset.sh"}]
+    }]
+  }
+}
+
+# Inspect history:
+tool-use-stats              # rolling 7d: p50, p90, max, % over threshold
+tool-use-stats --by-tool    # which tools eat your budget
+tool-use-stats --max        # top 5 highest-tool-count turns
+tool-use-stats --tail       # last 20 turns
+
+# Tune soft target (default 35):
+export TOOL_USE_SOFT_TARGET=25   # stronger nudges to delegate earlier</code></pre>
+
+<p>Full rule-set with bad/good examples: <code>core/TOOL_USE_HYGIENE.md</code>. The model-side directive is in <code>GLOBAL-CLAUDE.md</code> under "Tool-use hygiene".</p>
+
 <h2 id="routing">Model + effort routing</h2>
 
 <p>Claude Opus 4.7 era. Always-on, applies to every response.</p>
@@ -464,7 +518,7 @@ update-claude-cost --emit-l3-global    # push cost tally to Code CLAUDE.md (L3)<
 <p>CC BY-NC 4.0 — free to use, modify, and share for non-commercial purposes. Attribution required. See <a href="https://github.com/daskuntal75/llm-cost-kit/blob/main/LICENSE">LICENSE</a> for full terms.</p>
 
 <div class="footer">
-<p>LLM Cost Kit v3.6 · Built 2026 · <a href="https://github.com/daskuntal75/llm-cost-kit">github.com/daskuntal75/llm-cost-kit</a> · CC BY-NC 4.0</p>
+<p>LLM Cost Kit v3.7 · Built 2026 · <a href="https://github.com/daskuntal75/llm-cost-kit">github.com/daskuntal75/llm-cost-kit</a> · CC BY-NC 4.0</p>
 </div>
 
 </div>

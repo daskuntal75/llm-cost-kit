@@ -1,5 +1,5 @@
 # Claude Code Global Config — ~/.claude/CLAUDE.md
-<!-- Version: 3.5.2 -->
+<!-- Version: 3.7 -->
 <!-- SETUP: Copy this file to ~/.claude/CLAUDE.md -->
 <!--   This file is loaded automatically in EVERY Claude Code session on your machine. -->
 <!--   Project-level CLAUDE.md files override these defaults when they conflict. -->
@@ -55,6 +55,20 @@ Never compromise a higher tier for a lower one.
 | New unrelated task | `/clear` | Context irrelevant; cheaper fresh |
 
 `/clear` wipes in-session buffer only. It does NOT touch memory files, CLAUDE.md, or anything on disk.
+
+## Tool-use hygiene (always active — kit v3.7+)
+
+The PreToolUse hook (`~/.claude/hooks/tool-use-counter.sh`) tracks calls per turn. Soft target: 35 (env: `TOOL_USE_SOFT_TARGET`); hard cap: ~50 (Claude Code system bound).
+
+When stderr shows `⚠️ Tool-use X/35 (70%)` or higher:
+1. **Stop** sequential tool calls.
+2. **Batch** remaining reads/greps into ONE message (parallel tool calls).
+3. **Chain** shell commands with `&&` instead of separate Bash calls.
+4. **Delegate** tool-heavy subtasks to a subagent — subagents have their own quota, so a 50-call exploration costs 1 main-session slot.
+
+Never push past 85%. The forced "continue" turn costs a full cache miss + user friction. Cheaper to checkpoint and ask than to hit the cap.
+
+Inspect history: `tool-use-stats` (rolling 7d summary) · `--by-tool` · `--max` · `--tail`. Full rule-set: `core/TOOL_USE_HYGIENE.md`.
 
 ## Tone
 Direct. No hedging. If something is wrong, say so. If a better approach exists, flag it once — don't repeat it.
