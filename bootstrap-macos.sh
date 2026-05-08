@@ -1,6 +1,6 @@
 #!/bin/zsh
 # =============================================================================
-# LLM Cost Kit v3.6 — macOS Pre-flight Bootstrap
+# LLM Cost Kit v3.8.1 — macOS Pre-flight Bootstrap
 # Usage: bash bootstrap-macos.sh
 #
 # Run this FIRST on a fresh Mac (or Mac Mini) before setup.sh.
@@ -27,7 +27,7 @@ err()  { printf "${RED}  ✗${NC} %s\n" "$1"; }
 
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║   LLM Cost Kit v3.6 — macOS Pre-flight Bootstrap     ║"
+echo "║   LLM Cost Kit v3.8.1 — macOS Pre-flight Bootstrap   ║"
 echo "║   Run this BEFORE setup.sh on a fresh Mac.           ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""

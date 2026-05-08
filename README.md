@@ -87,6 +87,12 @@ Then re-run `bash verify.sh` — the L3-global check confirms instruction files 
 
 Hourly pipeline auto-refreshes L2 + L3-global + L7 cost tally. See [`platforms/claude/scripts/cumulative-cost-launchagent.sh`](platforms/claude/scripts/cumulative-cost-launchagent.sh).
 
+## What's new in v3.8.1
+
+- **Compact 2-line cost tally** — replaces the verbose 3-line block with a 2-line format. Adds a per-turn `Tools: A/35` counter so the tally shows tool-use pressure inline; drops fields already surfaced by `update-claude-cost` (full ccusage value, tier name, reset timestamps, Extra-usage flag, Throttle line). Existing installs migrate cleanly on the next hourly LaunchAgent refresh — `emit-l7-helper.py` regex matches both old and new formats.
+- **Null-safe burn calculation** — `update-claude-cost.sh` now uses `// 0` defaults on `.api_pool.recent_monthly_burn`, so fresh installs without a seeded API balance no longer crash the recompute step or print empty fields in the report summary.
+- **Verdict shortener** — long verdict strings (`DOWNGRADE CANDIDATE`, `STRONG DOWNGRADE`, `BELOW BREAK-EVEN`, `PLAN CORRECTLY SIZED`) compressed to fit the 2-line budget without truncation: `DOWNGRADE`, `STRONG-DN`, `BELOW-BE`, `SIZED`.
+
 ## What's new in v3.8
 
 - **Pattern-aware warnings** — counter hook now emits 💡 nudges as anti-patterns happen: 3+ sequential `Bash` calls (chain candidate), 5+ sequential same-tool calls (batch candidate), turn ≥ 15 calls (delegate candidate). Each fires once per turn; no spam.
@@ -102,6 +108,10 @@ Hourly pipeline auto-refreshes L2 + L3-global + L7 cost tally. See [`platforms/c
 - **`GLOBAL-CLAUDE.md` rule** — auto-loaded directive that tells the model how to react to threshold warnings: stop, batch, chain, or delegate.
 
 ## What's new in v3.6
+
+- **`bootstrap-macos.sh`** — pre-flight installer for a bare Mac. Handles Xcode CLT, Homebrew, node/npm, jq, fswatch, git, gh, and the Claude Desktop cask before `setup.sh` runs. Closes the prereq gap `setup.sh` previously assumed.
+- **`verify.sh`** — green/red dashboard for prereqs, auth state, cost-tracking init, LaunchAgent status, MCP configs, and instruction-layer presence. Run anytime to confirm a setup is healthy.
+- **MCP connector reminder** — `setup.sh` tail and `verify.sh` now surface [claude.ai/settings/connectors](https://claude.ai/settings/connectors), the one step every fresh-machine setup forgets.
 
 ## What's new in v3.5.2
 
