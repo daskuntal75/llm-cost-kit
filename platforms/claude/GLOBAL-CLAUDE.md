@@ -5,6 +5,15 @@
 <!--   Project-level CLAUDE.md files override these defaults when they conflict. -->
 <!--   Run `update-claude-cost --emit-l3-global` to keep the cost tally values current. -->
 
+## Explanation Register (always active, top priority)
+
+**Explain like I'm 8.** Use simple words and one relatable analogy. Stay concise.
+Every factual claim needs a citation or visible reasoning — never assume without one.
+
+Sits above the response rules below: directness and brevity stay, but the register
+defaults to plain language + one analogy + cited evidence. Skip the analogy only when
+it would actually obscure the answer (e.g., literal code edits, terminal commands).
+
 ## Response Rules (always active, all projects)
 - Answer first, explain after (if at all)
 - Complete, runnable code only — no truncation, no TODO placeholders
