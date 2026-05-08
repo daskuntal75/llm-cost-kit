@@ -122,7 +122,7 @@ recompute() {
       | .value_signal.downgrade_candidate = $d' \
      "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
 
-  BURN=$(jq .api_pool.recent_monthly_burn "$COST_FILE")
+  BURN=$(jq -r ".api_pool.recent_monthly_burn // 0" "$COST_FILE")
   if (( $(python3 -c "print(1 if $BURN > 5 else 0)") )); then
     ACTIVE=true
   else
@@ -319,7 +319,7 @@ jq -r '"  ccusage MTD:  $\(.value_signal.ccusage_mtd) (retail-equivalent value)"
 echo ""
 echo "▸ API pool (Console credits — for direct API usage)"
 jq -r '"  Balance: $\(.api_pool.credit_balance) (updated: \(.api_pool.balance_updated // "never"))",
-       "  Recent burn: $\(.api_pool.recent_monthly_burn)/mo · Active: \(.api_pool.active)"' "$COST_FILE"
+       "  Recent burn: $\(.api_pool.recent_monthly_burn // 0)/mo · Active: \(.api_pool.active)"' "$COST_FILE"
 
 THROTTLE_COUNT=$(jq '.subscription.throttle_events | length' "$COST_FILE")
 if [[ "$THROTTLE_COUNT" -gt 0 ]]; then

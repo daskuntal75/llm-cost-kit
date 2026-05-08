@@ -28,11 +28,11 @@ The cost tally is NOT counted against the output limits above. Append it to ever
 exception — including one-word replies, tool-only responses, and short lookups.
 
 **Cost tally**
-~Xk in / ~Y out · $Z.ZZ session · Plan: [YOUR_PLAN] ($XX/mo, renews YYYY-MM-DD) · ccusage value: $X.XX (X.XX×) · [VERDICT]
-Session: X% (resets in Xh Xm) · Weekly all/sonnet: X%/Y% (resets [DAY HH:MM]) · API pool: $X.XX/$XXX ([TIER], resets YYYY-MM-DD) · Extra usage: [ON/OFF]
-Throttle: X since last reset · refreshed YYYY-MM-DD
+~Xk in / ~Y out · $Z.ZZ · Tools: A/35 · Plan: [YOUR_PLAN] (X.XX×, [VERDICT_SHORT]) · API: $X.XX/$XXX
+Session X% · Weekly X%/Y% · refreshed YYYY-MM-DD
 
-<!-- Run `update-claude-cost --emit-l3-global` to refresh the three lines above. -->
+<!-- Model fills `~Xk in / ~Y out / $Z.ZZ / A` (Tools=this-turn count from ~/.local/cost/tool-counts/<sid>.json). -->
+<!-- The rest is auto-refreshed hourly by `update-claude-cost --emit-l3-global` (kit v3.8.1+). -->
 <!-- Wire --emit-l3-global into your hourly LaunchAgent to keep it automatic. -->
 
 ## Engineering priority order (universal)

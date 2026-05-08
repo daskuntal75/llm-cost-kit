@@ -138,6 +138,29 @@ line2 = (
 )
 line3 = f"{throttle_phrase} · refreshed {today}"
 
+# v3.8.1+ — simpler 2-line cost-tally format used by --l3-global.
+# Adds `Tools: A/35` placeholder (model fills A from the per-turn counter).
+# Drops verbose fields (renewal date, full ccusage value, tier name, reset times,
+# Extra-usage flag, Throttle line) — they live in `update-claude-cost` for on-demand inspection.
+verdict_short = {
+    "DOWNGRADE CANDIDATE": "DOWNGRADE",
+    "PLAN JUSTIFIED":      "JUSTIFIED",
+    "STRONG DOWNGRADE":    "STRONG-DN",
+    "BELOW BREAK-EVEN":    "BELOW-BE",
+    "PLAN CORRECTLY SIZED": "SIZED",
+    "WORKING WELL":        "OK",
+}.get(verdict, verdict.upper().replace(" ", "-"))
+
+simple_line1 = (
+    f"~Xk in / ~Y out · $Z.ZZ · Tools: A/35 · "
+    f"Plan: {plan} ({ratio}×, {verdict_short}) · "
+    f"API: ${api_spend:.2f}/${api_limit:.0f}"
+)
+simple_line2 = (
+    f"Session {session_pct}% · Weekly {weekly_all}%/{weekly_sonnet}% · "
+    f"refreshed {today}"
+)
+
 new_directive = (
     "Cost tally format: end every response with a bold header and a three-line tally:\n\n"
     "**Cost tally**\n"
@@ -223,7 +246,7 @@ if l2_path:
             f.write(content)
         print(f"  ✓ L2 written: {l2_path}")
 
-# --- L3-global update (~/.claude/CLAUDE.md) ---
+# --- L3-global update (~/.claude/CLAUDE.md) — v3.8.1+ simpler 2-line format ---
 if l3_global_path:
     if not os.path.isfile(l3_global_path):
         print(f"  ✗ L3-global file not found: {l3_global_path}", file=sys.stderr)
@@ -231,11 +254,15 @@ if l3_global_path:
         with open(l3_global_path) as f:
             content = f.read()
 
-        tally_block_new = f"**Cost tally**\n{line1}\n{line2}\n{line3}"
-        tally_pat = re.compile(r'\*\*Cost tally\*\*\n~Xk in[^\n]*\nSession:[^\n]*\nThrottle:[^\n]*')
+        tally_block_new = f"**Cost tally**\n{simple_line1}\n{simple_line2}"
+        # Match BOTH old (3-line, with Throttle) and new (2-line, no Throttle) formats
+        # so existing CLAUDE.md installs migrate cleanly.
+        tally_pat = re.compile(
+            r'\*\*Cost tally\*\*\n~Xk in[^\n]*\nSession:?[^\n]*(?:\nThrottle:[^\n]*)?'
+        )
         if tally_pat.search(content):
             content = tally_pat.sub(tally_block_new, content)
-            print(f"  ✓ L3-global cost tally block updated")
+            print(f"  ✓ L3-global cost tally block updated (2-line v3.8.1 format)")
         else:
             print(f"  ⚠ L3-global: cost tally block pattern not found — check formatting")
 
