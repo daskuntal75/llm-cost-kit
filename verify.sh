@@ -1,6 +1,6 @@
 #!/bin/zsh
 # =============================================================================
-# LLM Cost Kit v3.9 — Post-Setup Verification
+# LLM Cost Kit v3.9.1 — Post-Setup Verification
 # Usage: bash verify.sh
 #
 # Run this AFTER bootstrap-macos.sh + setup.sh + first-run auth to confirm
@@ -20,7 +20,7 @@ sec()  { printf "\n${BLUE}━━ %s ━━${NC}\n" "$1"; }
 
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║   LLM Cost Kit v3.9 — Verification Dashboard       ║"
+echo "║   LLM Cost Kit v3.9.1 — Verification Dashboard       ║"
 echo "╚══════════════════════════════════════════════════════╝"
 
 # ── Prereqs ──────────────────────────────────────────────────────────────────
