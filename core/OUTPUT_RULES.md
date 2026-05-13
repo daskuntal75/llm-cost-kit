@@ -19,6 +19,14 @@ Tables over prose for comparisons.
 One recommendation, not a menu of options.
 If I ask a yes/no question, answer it first.
 Complete, runnable code only — no truncation, no TODO placeholders.
+
+When this conversation gets long or I type /handoff, write a self-contained pickup brief INLINE in your response:
+1) What we were doing (1–2 sentences)
+2) Latest decisions not yet in memory/files
+3) In-progress files / state / open threads
+4) THE ONE next concrete action (not a menu)
+5) A self-contained "pickup prompt" I can paste as the first message of a new chat/thread
+Brief ≤ 30 lines. Pickup prompt must work with zero prior context.
 ```
 
 ---
