@@ -5,6 +5,56 @@
 <!--   Project-level CLAUDE.md files override these defaults when they conflict. -->
 <!--   Run `update-claude-cost --emit-l3-global` to keep the cost tally values current. -->
 
+## Pre-compact Handoff Protocol (v3.9)
+
+The `handoff-watcher` Stop hook (`~/.claude/hooks/handoff-watcher.sh`) writes
+`~/.claude/handoff-state.json` after every turn and emits a stderr nudge when
+session pressure crosses a threshold. The nudge surfaces to you as a
+system-reminder on the next turn. Statusline shows the live indicator:
+`compact 🟢/🟡/🔴 (Nt/Mc, idle Xm)`.
+
+**Thresholds (tunable via env vars):**
+- 🟢 — under 30 turns, under 100 tool-calls, idle ≤ 5m
+- 🟡 — 30–59 turns, 100–199 tool-calls, OR idle > 5m
+- 🔴 — ≥60 turns OR ≥200 tool-calls
+
+**Idle > 5m → recommend `/clear`** (cache cold; `/compact` wastes money on a
+cold cache). **Idle ≤ 5m → recommend `/compact`** (cache warm, ~10% summary cost).
+
+**Mandatory action when you see 🟡 or 🔴 in stderr or statusline:**
+Before doing anything else in your response, write/refresh
+`~/.claude/last-handoff.md` with this schema:
+
+```markdown
+# Handoff brief
+_<session-id-short> · <ISO timestamp UTC>_
+
+## What we were doing
+<1–2 sentences>
+
+## Latest in-session decisions (not yet in memory files)
+- <bullet>
+
+## In-progress files / commits / state
+- <file:lines>: <state>
+
+## Next concrete action
+<exactly what to do first after /clear or /compact>
+
+## Pickup prompt (paste this as first message after /clear or /compact)
+
+> Resume from `~/.claude/last-handoff.md`. <one-line context>.
+> Next action: <one-line next step>. Read the brief, then proceed.
+```
+
+Rules:
+- Overwrite, don't append — only the latest brief is useful.
+- Keep total brief ≤ 30 lines; link to longer docs if needed.
+- The pickup prompt must be self-contained — the post-clear/compact agent has
+  ZERO memory of this session.
+- After writing, quote the pickup prompt inline in your response so the user
+  can copy it directly without opening the file.
+
 ## Explanation Register (always active, top priority)
 
 **Explain like I'm 8.** Use simple words and one relatable analogy. Stay concise.

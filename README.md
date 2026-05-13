@@ -87,6 +87,13 @@ Then re-run `bash verify.sh` — the L3-global check confirms instruction files 
 
 Hourly pipeline auto-refreshes L2 + L3-global + L7 cost tally. See [`platforms/claude/scripts/cumulative-cost-launchagent.sh`](platforms/claude/scripts/cumulative-cost-launchagent.sh).
 
+## What's new in v3.9
+
+- **Pre-compact handoff protocol** — new Stop hook `handoff-watcher.sh` computes session pressure (turn count, cumulative tool-calls, idle time since last user message) after every turn and writes `~/.claude/handoff-state.json`. Statusline shows live indicator `compact 🟢/🟡/🔴 (Nt/Mc, idle Xm)`. When 🟡 or 🔴 fires, the hook emits a stderr nudge — Claude Code surfaces it as a system-reminder on the next turn, telling the model to write/refresh `~/.claude/last-handoff.md` with a pick-up-where-we-left-off brief BEFORE doing anything else.
+- **`/handoff` skill** — slash-command form of the same protocol for user-initiated checkpoints (paste `/handoff` any time to force a brief).
+- **Auto-recommendation between `/clear` and `/compact`** — idle > 5 min → `/clear` (cache cold; `/compact` wastes money), idle ≤ 5 min → `/compact` (cache warm, ~10% summary cost). Tunable via `HANDOFF_TURNS_YELLOW`/`_RED`, `HANDOFF_TOOLS_YELLOW`/`_RED`, `HANDOFF_IDLE_YELLOW_MIN` env vars.
+- **Self-contained pickup prompt embedded in the brief** — the brief includes a copy-pasteable first message for the post-clear/compact session so the new agent picks up with zero context loss.
+
 ## What's new in v3.8.1
 
 - **Compact 2-line cost tally** — replaces the verbose 3-line block with a 2-line format. Adds a per-turn `Tools: A/35` counter so the tally shows tool-use pressure inline; drops fields already surfaced by `update-claude-cost` (full ccusage value, tier name, reset timestamps, Extra-usage flag, Throttle line). Existing installs migrate cleanly on the next hourly LaunchAgent refresh — `emit-l7-helper.py` regex matches both old and new formats.

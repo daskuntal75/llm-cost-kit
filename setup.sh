@@ -15,7 +15,7 @@ info() { printf "${BLUE}  →${NC} %s\n" "$1"; }
 
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║   LLM Cost Kit v3.8.1 — Setup                        ║"
+echo "║   LLM Cost Kit v3.9 — Setup                        ║"
 echo "║   (Claude Chat + Cowork + Code)                      ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""
@@ -118,7 +118,8 @@ SETTINGS=~/.claude/settings.json
 if command -v jq &>/dev/null; then
   HOOK_CMD="$HOME/.claude/hooks/tool-use-counter.sh"
   RESET_CMD="$HOME/.claude/hooks/tool-use-reset.sh"
-  jq --arg cmd "$HOOK_CMD" --arg reset "$RESET_CMD" '
+  HANDOFF_CMD="$HOME/.claude/hooks/handoff-watcher.sh"
+  jq --arg cmd "$HOOK_CMD" --arg reset "$RESET_CMD" --arg handoff "$HANDOFF_CMD" '
     .hooks //= {}
     | .hooks.PreToolUse = (
         ((.hooks.PreToolUse // [])
@@ -127,11 +128,13 @@ if command -v jq &>/dev/null; then
       )
     | .hooks.Stop = (
         ((.hooks.Stop // [])
-         | map(select((.hooks // []) | map(.command) | index($reset) | not)))
+         | map(select((.hooks // []) | map(.command) | index($reset) | not))
+         | map(select((.hooks // []) | map(.command) | index($handoff) | not)))
         + [{hooks: [{type:"command", command:$reset}]}]
+        + [{hooks: [{type:"command", command:$handoff}]}]
       )
   ' "$SETTINGS" > "$SETTINGS.tmp" && mv "$SETTINGS.tmp" "$SETTINGS"
-  ok "Hooks registered in ~/.claude/settings.json"
+  ok "Hooks registered in ~/.claude/settings.json (tool-use-counter, tool-use-reset, handoff-watcher)"
 else
   warn "jq missing — cannot auto-register hooks. Run bootstrap-macos.sh first."
 fi

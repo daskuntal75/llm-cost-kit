@@ -1,6 +1,6 @@
 #!/bin/zsh
 # =============================================================================
-# LLM Cost Kit v3.8.1 — Kit Generator
+# LLM Cost Kit v3.9 — Kit Generator
 # Usage: bash generate-kit.sh [claude|openai|gemini|all]
 #         (no arg builds all four)
 #
@@ -87,7 +87,7 @@ build_kit() {
   ok "$(printf '%-22s  %s' "${name}.zip" "$size")"
 }
 
-printf "\n${BOLD}LLM Cost Kit v3.8.1 — building kits${NC}\n"
+printf "\n${BOLD}LLM Cost Kit v3.9 — building kits${NC}\n"
 info "dist:  $DIST_DIR"
 info "stage: $BUILD_DIR"
 echo ""

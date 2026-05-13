@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LLM Cost Kit v3.8.1 — Guide</title>
+<title>LLM Cost Kit v3.9 — Guide</title>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
@@ -106,13 +106,13 @@
 <body>
 <div class="container">
 
-<h1>LLM Cost Kit v3.8.1</h1>
+<h1>LLM Cost Kit v3.9</h1>
 <p class="subtitle">40–70% cost reduction for Claude, ChatGPT, and Gemini — without quality loss.</p>
 
 <div class="toc">
 <h3>Contents</h3>
 <ul>
-<li><a href="#what-changed">What's new in v3.8.1</a></li>
+<li><a href="#what-changed">What's new in v3.9</a></li>
 <li><a href="#tool-use-hygiene">Tool-use hygiene</a></li>
 <li><a href="#hierarchy">The 7-layer hierarchy</a></li>
 <li><a href="#decision-tree">Decision tree — where should this rule go?</a></li>
@@ -126,14 +126,18 @@
 </ul>
 </div>
 
-<h2 id="what-changed">What's new in v3.8.1</h2>
+<h2 id="what-changed">What's new in v3.9</h2>
 
 <table>
 <thead><tr><th>Addition</th><th>Why it matters</th></tr></thead>
 <tbody>
-<tr><td><strong>Compact 2-line cost tally</strong></td><td>Replaces the verbose 3-line block with a 2-line format. Adds a per-turn <code>Tools: A/35</code> counter inline, drops fields already surfaced by <code>update-claude-cost</code> (full ccusage value, tier name, reset timestamps, Extra-usage flag, Throttle line). Existing CLAUDE.md installs migrate cleanly on the next hourly LaunchAgent refresh.</td></tr>
-<tr><td><strong>Null-safe burn calc</strong></td><td><code>update-claude-cost.sh</code> uses <code>// 0</code> defaults on <code>.api_pool.recent_monthly_burn</code>. Fresh installs without a seeded API balance no longer crash the recompute step or print empty fields in the report summary.</td></tr>
-<tr><td><strong>Verdict shortener</strong></td><td>Long verdict strings compressed to fit the 2-line budget without truncation: <code>DOWNGRADE CANDIDATE</code> → <code>DOWNGRADE</code>, <code>STRONG DOWNGRADE</code> → <code>STRONG-DN</code>, <code>BELOW BREAK-EVEN</code> → <code>BELOW-BE</code>, <code>PLAN CORRECTLY SIZED</code> → <code>SIZED</code>.</td></tr>
+<tr><td><strong>Pre-compact handoff protocol</strong></td><td>New Stop hook <code>handoff-watcher.sh</code> computes session pressure (turn count, cumulative tool-calls, idle minutes since last user message) after every turn and writes <code>~/.claude/handoff-state.json</code>. Statusline shows live indicator <code>compact 🟢/🟡/🔴 (Nt/Mc, idle Xm)</code>. When 🟡 or 🔴 fires, the hook emits a stderr nudge — Claude Code surfaces it as a system-reminder on the next turn, telling the model to write/refresh <code>~/.claude/last-handoff.md</code> with a pickup brief BEFORE doing anything else.</td></tr>
+<tr><td><strong><code>/handoff</code> skill</strong></td><td>Slash-command form of the same protocol for user-initiated checkpoints. Paste <code>/handoff</code> any time to force a brief regardless of pressure level.</td></tr>
+<tr><td><strong>Auto-recommend <code>/clear</code> vs <code>/compact</code></strong></td><td>Idle &gt; 5 min → <code>/clear</code> (cache cold; <code>/compact</code> wastes money on a cold cache). Idle ≤ 5 min → <code>/compact</code> (cache warm, ~10% summary cost). Tunable via <code>HANDOFF_*</code> env vars.</td></tr>
+<tr><td><strong>Self-contained pickup prompt in the brief</strong></td><td>The brief embeds a copy-pasteable first message for the post-clear/compact agent. Zero context loss — the new agent reads the brief and resumes.</td></tr>
+<tr><td><strong>Compact 2-line cost tally</strong> (v3.8.1 carry-over)</td><td>Replaces the verbose 3-line block with a 2-line format. Adds a per-turn <code>Tools: A/35</code> counter inline, drops fields already surfaced by <code>update-claude-cost</code>. Existing CLAUDE.md installs migrate cleanly on the next hourly LaunchAgent refresh.</td></tr>
+<tr><td><strong>Null-safe burn calc</strong> (v3.8.1 carry-over)</td><td><code>update-claude-cost.sh</code> uses <code>// 0</code> defaults on <code>.api_pool.recent_monthly_burn</code>. Fresh installs without a seeded API balance no longer crash the recompute step or print empty fields.</td></tr>
+<tr><td><strong>Verdict shortener</strong> (v3.8.1 carry-over)</td><td>Long verdict strings compressed to fit the 2-line budget without truncation: <code>DOWNGRADE CANDIDATE</code> → <code>DOWNGRADE</code>, <code>STRONG DOWNGRADE</code> → <code>STRONG-DN</code>, <code>BELOW BREAK-EVEN</code> → <code>BELOW-BE</code>, <code>PLAN CORRECTLY SIZED</code> → <code>SIZED</code>.</td></tr>
 <tr><td><strong>Pattern-aware warnings</strong> (v3.8 carry-over)</td><td>Counter hook emits 💡 nudges <em>as anti-patterns happen</em>: 3+ sequential <code>Bash</code> calls, 5+ sequential same-tool calls, or turn ≥ 15 calls. Once per turn, no spam. Catches drift in real time, not just at threshold.</td></tr>
 <tr><td><strong><code>tool-use-stats --lint</code></strong> (v3.8 carry-over)</td><td>Retrospective scan of <code>history.jsonl</code> over the last 7 days. Lists rule-1/2/3 violations with estimated slot-waste. Run weekly to spot drift trends.</td></tr>
 <tr><td><strong>Opt-in hard enforcement</strong> (v3.8 carry-over)</td><td><code>TOOL_USE_HARD_BLOCK=1</code> makes the PreToolUse hook return <code>permissionDecision: deny</code> at 85% of soft target. Claude Code blocks the tool call and feeds the reason back to the model, forcing a checkpoint or delegation. Use when retrospective lint shows persistent violations.</td></tr>
@@ -525,7 +529,7 @@ update-claude-cost --emit-l3-global    # push cost tally to Code CLAUDE.md (L3)<
 <p>CC BY-NC 4.0 — free to use, modify, and share for non-commercial purposes. Attribution required. See <a href="https://github.com/daskuntal75/llm-cost-kit/blob/main/LICENSE">LICENSE</a> for full terms.</p>
 
 <div class="footer">
-<p>LLM Cost Kit v3.8.1 · Built 2026 · <a href="https://github.com/daskuntal75/llm-cost-kit">github.com/daskuntal75/llm-cost-kit</a> · CC BY-NC 4.0</p>
+<p>LLM Cost Kit v3.9 · Built 2026 · <a href="https://github.com/daskuntal75/llm-cost-kit">github.com/daskuntal75/llm-cost-kit</a> · CC BY-NC 4.0</p>
 </div>
 
 </div>
