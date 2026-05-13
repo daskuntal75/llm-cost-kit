@@ -65,7 +65,10 @@ next_reset = sub.get("next_reset_at")
 window_started = sub.get("window_started_at")
 
 api = data["api_pool"]
-api_spend = api["current_spend"]
+# v3.9.1: prefer recent_monthly_burn (set via `--burn`) over the legacy current_spend
+# field which can become stale when only the burn is updated. Falls through to 0 if
+# neither field is present (fresh installs).
+api_spend = api.get("recent_monthly_burn") or api.get("current_spend") or 0
 api_limit = api["customer_limit"]
 api_tier = api.get("tier_name") or "?"
 api_ceiling = api.get("tier_ceiling") or 0
@@ -142,14 +145,22 @@ line3 = f"{throttle_phrase} · refreshed {today}"
 # Adds `Tools: A/35` placeholder (model fills A from the per-turn counter).
 # Drops verbose fields (renewal date, full ccusage value, tier name, reset times,
 # Extra-usage flag, Throttle line) — they live in `update-claude-cost` for on-demand inspection.
-verdict_short = {
-    "DOWNGRADE CANDIDATE": "DOWNGRADE",
-    "PLAN JUSTIFIED":      "JUSTIFIED",
-    "STRONG DOWNGRADE":    "STRONG-DN",
-    "BELOW BREAK-EVEN":    "BELOW-BE",
+# v3.9.1: verdict from the JSON may be either a clean tag ("DOWNGRADE CANDIDATE")
+# OR the full descriptive sentence ("✓ extracting 8.1× value, no throttling — DOWNGRADE CANDIDATE").
+# Match by substring instead of exact-key lookup so both formats reduce to the short tag.
+_verdict_map = {
+    "STRONG DOWNGRADE":     "STRONG-DN",
+    "BELOW BREAK-EVEN":     "BELOW-BE",
     "PLAN CORRECTLY SIZED": "SIZED",
-    "WORKING WELL":        "OK",
-}.get(verdict, verdict.upper().replace(" ", "-"))
+    "DOWNGRADE CANDIDATE":  "DOWNGRADE",
+    "PLAN JUSTIFIED":       "JUSTIFIED",
+    "WORKING WELL":         "OK",
+}
+verdict_upper = verdict.upper()
+verdict_short = next((short for key, short in _verdict_map.items() if key in verdict_upper), None)
+if verdict_short is None:
+    # Fallback: take last word/phrase, cap at 12 chars to avoid blowing the line budget
+    verdict_short = verdict_upper.replace(" ", "-")[-12:]
 
 simple_line1 = (
     f"~Xk in / ~Y out · $Z.ZZ · Tools: A/35 · "
