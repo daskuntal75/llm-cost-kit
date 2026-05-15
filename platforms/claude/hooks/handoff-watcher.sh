@@ -18,11 +18,19 @@
 #   HANDOFF_IDLE_YELLOW_MIN (default 5)   — > this → recommend /clear over /compact
 # =============================================================================
 
-set -e
+set +e  # never crash the Stop pipeline on jq parse failures — leaking stderr
+        # to the harness shows up as "Stop hook error" and historically risks
+        # session-archival side-effects in the desktop app.
 
-INPUT=$(cat)
-SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // "unknown"')
-TRANSCRIPT=$(echo "$INPUT" | jq -r '.transcript_path // empty')
+# Strip non-whitespace control bytes (0x00-0x08, 0x0B, 0x0C, 0x0E-0x1F) from
+# the hook payload before jq sees it. Some tool results (e.g. `strings` on
+# binaries) leak raw control bytes into the harness's stdin payload, and jq's
+# JSON parser rejects them ("Invalid string: control characters from U+0000
+# through U+001F must be escaped"). Keep tab/LF/CR — valid JSON whitespace.
+INPUT=$(LC_ALL=C tr -d '\000-\010\013\014\016-\037')
+SESSION_ID=$(printf '%s' "$INPUT" | jq -r '.session_id // "unknown"' 2>/dev/null)
+[[ -z "$SESSION_ID" || "$SESSION_ID" == "null" ]] && SESSION_ID="unknown"
+TRANSCRIPT=$(printf '%s' "$INPUT" | jq -r '.transcript_path // empty' 2>/dev/null)
 
 STATE_FILE="$HOME/.claude/handoff-state.json"
 HIST="$HOME/.local/cost/tool-counts/history.jsonl"

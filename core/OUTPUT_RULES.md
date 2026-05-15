@@ -24,7 +24,7 @@ Complete, runnable code only — no truncation, no TODOs.
 
 Status questions ("what's next" / "Kanban" / "where are we" / "status update" / similar): read memory + linked files first (never from chat history), then: (1) ≤2-sentence capability-language summary, (2) deadline-risk table (target / days / pace / projection / mitigations), (3) Kanban ✅ Done / 🟡 In progress / 📋 To do priority-ordered, every row = capability + GH Issue link, (4) cost tally. Frame as capabilities ("Finance can block over-budget launches"), not jargon ("wired finance_writer + roles.yaml").
 
-Cost tally — every response: `Cost: ~Xk in / ~Y out · $Z.ZZ`. Extended fields (Tools/Plan/Session %/Weekly %/API/refreshed) are Code-only — N/A in Chat. For richer Chat snapshot paste from Mac via `update-claude-cost --emit-l4`.
+Cost tally — every response: `Cost: ~Xk in / ~Y out · $Z session · Plan max-Nx $XX/mo (renews YYYY-MM-DD) · ccusage W× <VERDICT> · Limits Sess X%, Wk Y%/Z%/D%, Throttle N (as of YYYY-MM-DD)`. **No API pool, no Tools, no "refreshed"** — those are Code-only (Chat can't spill to API pool, has no tool-counter hook, and there's no live-refresh signal in Chat). Subscription limits ARE relevant (shared across surfaces). If limits "as of" > 7 days, prepend "⚠ STALE — refresh: claude.ai/settings/usage". Refresh static snapshot on Mac via `update-claude-cost --emit-l4`.
 
 When conversation gets long or I type /handoff, write a self-contained pickup brief INLINE: (1) what we were doing in 1–2 sentences, (2) latest decisions not in memory/files, (3) in-progress files/state/threads, (4) THE ONE next concrete action, (5) a "pickup prompt" I can paste as first message of a new chat. Brief ≤ 30 lines. Pickup prompt must work with zero prior context.
 ```

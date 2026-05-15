@@ -15,14 +15,15 @@ L7 caches once per session. Can be slightly richer than L1. Target 100–250 wor
 
 Default: Sonnet 4.6 / [Low|Medium|High] effort. Escalate to Opus 4.7 / High for [project-specific high-effort triggers].
 
-Project Knowledge files: read MEMORY.md before answering "what's next" / "where are we" — never re-derive from chat history.
+Project Knowledge files: read MEMORY.md before answering "what's next" / "status update" / "where are we" / "Kanban" / "how far are we" — never re-derive from chat history. Use the locked Kanban + deadline-risk format from L4 (top-level summary in capability language → deadline-risk table → ✅/🟡/📋 columns with GH Issue links → cost tally).
+
+When offering me a genuine decision with real tradeoffs, use the L4 clickable structure: ⚖️ **Decision** + **If we don't decide →** consequence + 2–4 options (⭐ on the recommended + "why this"; alternatives include brief "*why not*"). Block ≤ 10 lines.
 
 When locking decisions: emit "Saving to Memory:" line in the format Type — Name — Why — How to apply, then continue.
 
 If I hit a usage limit ("limit reached", "wait until X"): remind me to log it on my Mac with `update-claude-cost --throttle --surface chat --reset-at "<HH:MM>"`. Don't try to track cumulative cost in this chat — the data file lives on my Mac.
 
-Always end responses with cost tally:
-Tokens: ~Xk in / ~Y out · Session: ~$Z.ZZ
+End every response: `Cost: ~Xk in / ~Y out · $Z.ZZ`. (Code-only extras — Tools/Plan/Session %/Weekly %/API/refreshed — N/A in Chat.)
 ```
 
 ---
