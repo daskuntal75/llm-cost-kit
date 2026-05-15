@@ -72,6 +72,18 @@ it would actually obscure the answer (e.g., literal code edits, terminal command
 - Tables > prose for comparisons
 - One recommendation, not a menu of options
 
+## Decision-request format (always active, OVERRIDES "one recommendation" for ALL decisions AND action gates — incl. yes/no)
+
+When offering **any decision OR action gate — including a yes/no gate** ("merge PR #X?", "proceed?", "deploy now?") — use this 5-part clickable structure — keep total block ≤ 10 lines. A yes/no gate becomes a 2–3 option clickable (the action ⭐ recommended · the hold/defer alternative · optionally a heavier variant):
+
+1. **⚖️ Decision:** one-line question
+2. **If we don't decide →** concrete consequence of the status quo
+3. **Options** (2–4): each row = ⭐ on the recommended option + **option name** + 1-line "why this"
+4. For each non-recommended option: brief "*why not*: <reason>"
+5. Implementation in Claude Code: use the `AskUserQuestion` tool with the recommended option listed first and prefixed `(Recommended)`. Put the no-action consequence in the question body so the user sees it before clicking.
+
+This rule APPLIES to yes/no gates too — any ask with an action consequence gets the clickable structure. It does NOT apply to: pure factual answers, or clarifying questions with no action consequence. Default there remains "one recommendation, not a menu."
+
 ## Output limits by task type
 
 | Task type | Max response |
@@ -83,16 +95,18 @@ it would actually obscure the answer (e.g., literal code edits, terminal command
 
 ## Cost tally — append to EVERY response (mandatory, not subject to token limits)
 
-The cost tally is NOT counted against the output limits above. Append it to every response without
-exception — including one-word replies, tool-only responses, and short lookups.
+Append to every response without exception (one-word replies, tool-only responses, short lookups included).
 
-**Cost tally**
+**Cost tally** — live from local hooks/files. **Code only** — Chat/Cowork get the 2-field minimum (`Cost: ~Xk in / ~Y out · $Z.ZZ`); extended fields below are N/A there.
 ~Xk in / ~Y out · $Z.ZZ · Tools: A/35 · Plan: [YOUR_PLAN] (X.XX×, [VERDICT_SHORT]) · API: $X.XX/$XXX
 Session X% · Weekly X%/Y% · refreshed YYYY-MM-DD
 
 <!-- Model fills `~Xk in / ~Y out / $Z.ZZ / A` (Tools=this-turn count from ~/.local/cost/tool-counts/<sid>.json). -->
-<!-- The rest is auto-refreshed hourly by `update-claude-cost --emit-l3-global` (kit v3.8.1+). -->
-<!-- Wire --emit-l3-global into your hourly LaunchAgent to keep it automatic. -->
+<!-- Other fields auto-refreshed hourly via `update-claude-cost --emit-l3-global`. -->
+<!-- Action status (exact strings): `RUNNING NOW` | `BLOCKED ON YOUR INPUT` (what?) | `WILL ADDRESS LATER` (gate?) | `✅ done` | `✅ NoOp`. Cost action: `NoOp` | `Watch` | `⚠ Recommend downgrades` | `🚨 HARD STOP`. -->
+<!-- Limits: $20 soft / $50 hard per session, $50 daily cap. Routing: Sonnet 4.6 default; Haiku for read-only/diagnostic; never auto-escalate to Opus. -->
+<!-- Blended rates: Haiku ~$2.20/M · Sonnet ~$6.60/M · Opus ~$33/M. -->
+<!-- Full spec: `~/.claude/patterns/cost-governance.md`. -->
 
 ## Engineering priority order (universal)
 
@@ -104,6 +118,57 @@ When two or more concerns conflict, the higher-tier item wins:
 4. **Scalability** — horizontal capacity, concurrency, cost-at-scale, cache hit rate
 
 Never compromise a higher tier for a lower one.
+
+## Branch-cadence + E2E-frequency rules (always active, all git projects)
+
+Keep downstream branches close. Run the right E2E at the right cost. Prefer many small merges over rare giant ones — bigger batches scale failure risk nonlinearly (DORA / Accelerate).
+
+### Drift thresholds — check at session start + before opening any PR
+
+Quick query: `git fetch && git log origin/<base>..origin/<head> --oneline | wc -l`
+
+| Lag | 🟢 healthy | 🟡 amber (warn) | 🔴 red (stop) |
+|---|---|---|---|
+| `develop` → `main` | ≤5 commits AND ≤3 days | 6–9 commits OR 4–7 days | ≥10 commits OR ≥7 days |
+| Feature → base | ≤10 commits AND ≤3 days | 11–25 commits OR 4–7 days | ≥26 commits OR ≥8 days |
+| Open PR idle (no activity) | <24 hr | >24 hr | >7 days |
+| Draft PR | — | >3 days | — |
+
+**Amber → flag in status update; recommend opening release-train PR within 48 hr.**
+**Red → lead the response with the warning; refuse new feature PRs until lag clears (require explicit user override).**
+
+Exemptions: planned release-freeze windows, hotfix branches.
+
+### E2E cadence — cost-aware tiering
+
+| Trigger | Scope | Wall-time | Cost target |
+|---|---|---|---|
+| Every PR (any branch) | Unit + smoke E2E (`@smoke` tag, 3–5 critical TCs) | <3 min | <$0.05 |
+| Merge to `develop` | + functional E2E (happy-path ~20 TCs, no visual regression) | <10 min | <$0.30 |
+| Merge to `main` | + visual regression + cross-browser | <20 min | <$1.00 |
+| Nightly cron on `develop` | Full E2E + smoke load (20 concurrent / 2 min) | <30 min | <$2.00 |
+| Pre-release tag | Full E2E + full load (50 concurrent / 10 min) + security audit | <45 min | <$5.00 |
+
+Cost levers in priority order: (1) tag tests `@smoke`/`@critical`/`@nightly`, (2) shard across 3–5 GHA runners, (3) skip on docs-only changes, (4) cache deps + browsers, (5) reuse staging DB with known seed, (6) fail-fast on PR runs, (7) visual regression only on main.
+
+### Operational triggers — when to flag proactively
+
+- **Session start** if user in a git repo and first message mentions launch/release/deploy/PR/merge/status → run drift check; lead with warning if amber/red
+- **"What's next" status rollup** → drift row added to standard table
+- **Before opening any PR** → check head→base drift; amber=rebase first; red=refuse without override
+- **After merging any PR** → if base was `develop`, immediately check develop→main delta
+
+### Anti-patterns
+
+- Full E2E on every commit of every draft branch (cost balloons; flake noise)
+- Zero E2E on develop/main pushes (silent merge-debt accumulation)
+- Disabling failing tests "temporarily" without a tracked issue + owner
+- Big-batch merges (≥20 commits develop→main) — exponential conflict + review-fatigue risk
+- Merging develop→main without rebase if ≥7 days old — re-run full CI on rebased branch first
+
+### Industry references
+
+DORA / Accelerate (Forsgren, Humble, Kim) · Google EngProd review-quality research (400 LOC review-quality ceiling) · Martin Fowler — Continuous Integration · Mike Cohn — testing pyramid (E2E should be <10% of test count).
 
 ## Session hygiene — 5-min cache window
 
