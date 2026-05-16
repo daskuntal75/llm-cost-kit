@@ -28,7 +28,7 @@
 # Performance budget: <10ms per call. Pure zsh + jq only.
 # =============================================================================
 
-set -e
+set +e  # never crash PreToolUse — a failed hook is non-blocking but spams stderr.
 
 SOFT="${TOOL_USE_SOFT_TARGET:-35}"
 WARN_70=$(( SOFT * 70 / 100 ))
@@ -39,9 +39,15 @@ HARD_BLOCK="${TOOL_USE_HARD_BLOCK:-0}"
 DIR="$HOME/.local/cost/tool-counts"
 mkdir -p "$DIR"
 
-INPUT=$(cat)
-SESSION_ID=$(echo "$INPUT" | jq -r '.session_id // "unknown"')
-TOOL_NAME=$(echo "$INPUT" | jq -r '.tool_name // "?"')
+# Strip non-whitespace control bytes (0x00-0x08, 0x0B, 0x0C, 0x0E-0x1F) from
+# the hook payload before jq sees it. Tool invocations with heredocs / binary
+# content / strings-output leak raw control bytes into stdin, and jq's strict
+# JSON parser rejects them. Keep tab/LF/CR (valid JSON whitespace between tokens).
+INPUT=$(LC_ALL=C tr -d '\000-\010\013\014\016-\037')
+SESSION_ID=$(printf '%s' "$INPUT" | jq -r '.session_id // "unknown"' 2>/dev/null)
+[[ -z "$SESSION_ID" || "$SESSION_ID" == "null" ]] && SESSION_ID="unknown"
+TOOL_NAME=$(printf '%s' "$INPUT" | jq -r '.tool_name // "?"' 2>/dev/null)
+[[ -z "$TOOL_NAME" || "$TOOL_NAME" == "null" ]] && TOOL_NAME="?"
 STATE="$DIR/${SESSION_ID}.json"
 
 [[ -f "$STATE" ]] || echo '{"count":0,"warned":[],"tools":{},"recent":[]}' > "$STATE"
