@@ -87,6 +87,10 @@ Then re-run `bash verify.sh` — the L3-global check confirms instruction files 
 
 Hourly pipeline auto-refreshes L2 + L3-global + L7 cost tally. See [`platforms/claude/scripts/cumulative-cost-launchagent.sh`](platforms/claude/scripts/cumulative-cost-launchagent.sh).
 
+## What's new in v3.9.1
+
+- **Orchestrator status/report split (statusline TUI fix)** — the autonomous-`/loop` and scheduled-standup end-of-run report now writes **two** files, both overwritten (never appended): the full report → `~/.claude/orchestrator-phase.txt` (latest run only), and a **single line** → `~/.claude/orchestrator-status.txt`. The statusline reads ONLY the 1-line status file (hard-capped to its first line), so a growing report can never flood/illegibly fill the Claude Code prompt area. Fixes the failure mode where an append-only log + `cat`-the-whole-file statusline made the TUI unusable.
+
 ## What's new in v3.9
 
 - **Pre-compact handoff protocol** — new Stop hook `handoff-watcher.sh` computes session pressure (turn count, cumulative tool-calls, idle time since last user message) after every turn and writes `~/.claude/handoff-state.json`. Statusline shows live indicator `compact 🟢/🟡/🔴 (Nt/Mc, idle Xm)`. When 🟡 or 🔴 fires, the hook emits a stderr nudge — Claude Code surfaces it as a system-reminder on the next turn, telling the model to write/refresh `~/.claude/last-handoff.md` with a pick-up-where-we-left-off brief BEFORE doing anything else.

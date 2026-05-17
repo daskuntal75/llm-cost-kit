@@ -67,7 +67,9 @@ If no items are eligible (everything left is L3 or stop-conditioned) → end the
 
 After the queue is exhausted OR you hit a stop condition OR cost cap reached:
 
-1. **Append** the report to `~/.claude/orchestrator-phase.txt` (overwrite-this-section style — don't accumulate).
+1. **Overwrite (never append)** two files:
+   - `~/.claude/orchestrator-phase.txt` — the **full** report (latest run only; do not accumulate prior runs).
+   - `~/.claude/orchestrator-status.txt` — a **single line**: `<short phase> · ✅N 🅿️N 📋N · $cost · <ISO-time>`. The Claude Code statusline reads ONLY this 1-line file, so a growing report can never flood the TUI.
 2. **Fire an osascript notification** so [USER] sees it next morning.
 3. **Use AskUserQuestion** to render each parked Decision as a clickable prompt — one tool call per Decision. This makes [USER]'s morning review a series of clicks, not a re-read.
 
@@ -160,7 +162,8 @@ These override the "keep going" rule. If any fire, stop everything and wait for 
 
 - `/loop` skill — entry point. Invoke `/loop` (no arg) for self-paced, or `/loop 30m` for fixed interval.
 - `~/.claude/scheduled-tasks/<name>/SKILL.md` — for cron-fired autonomous runs.
-- `~/.claude/orchestrator-phase.txt` — destination of the end-of-run report.
+- `~/.claude/orchestrator-phase.txt` — full end-of-run report (overwritten each run, latest only).
+- `~/.claude/orchestrator-status.txt` — single-line phase label the statusline reads (overwritten each run).
 - `~/.local/state/loop-last-end/<project>.json` — structured exit state (read by `loop-can-fire`).
 - `~/.local/bin/loop-can-fire <project>` — cron pre-flight gate (exit 0 = FIRE, non-zero = SKIP).
 - `~/.local/bin/loop-status` — interactive health check (active processes + state files + orchestrator tail).
@@ -181,7 +184,7 @@ If proceeding:
   Stop only on the 7 stop conditions.
 
 At end-of-run (any termination — clean, parked-only, or halt):
-  1. Append the end-of-run report to ~/.claude/orchestrator-phase.txt.
+  1. Overwrite (never append) ~/.claude/orchestrator-phase.txt with the full end-of-run report (latest run only) AND ~/.claude/orchestrator-status.txt with a single status line.
   2. Write the MANDATORY state file ~/.local/state/loop-last-end/<project-slug>.json per the schema above.
   3. Fire an osascript notification with: items shipped, parked Decisions count, exit reason.
 ```
