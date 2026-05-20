@@ -1,64 +1,130 @@
 #!/bin/zsh
 # =============================================================================
-# update-claude-cost — v3.5.2
-#   Two-pool model: subscription (flat fee) + api_pool (everything else)
-#   subscription.extra_usage_enabled is a simple boolean (not a separate pool)
-#   Auto-migrates from v3.4.x and v3.5.x
+# update-claude-cost — v3.4.1 (subscription-aware + throttle event tracking)
 #
-# Setup:
-#   chmod +x update-claude-cost
-#   cp update-claude-cost ~/.local/bin/
-#   export SKILLS_SOURCE_DIR=~/dev/skills-source   # add to ~/.zshrc
+# Tracks two signals + throttle events:
+#   1. Subscription value (ccusage retail-equivalent vs plan fee)
+#   2. API pool burn (when production apps call Anthropic API directly)
+#   3. Throttle events (when, where, reset time, downtime minutes)
 #
-# Wire into hourly LaunchAgent:
-#   update-claude-cost --code && update-claude-cost --pull-api-spend && \
-#   update-claude-cost --emit-l7 && update-claude-cost --emit-l2 && \
-#   update-claude-cost --emit-l3-global
+# Usage:
+#   update-claude-cost                              Show current state
+#   update-claude-cost --code                       Refresh ccusage (auto, daily)
+#   update-claude-cost --plan max-20x --fee 200     Set/update subscription
+#   update-claude-cost --balance 14.57              Update Console credit balance
+#   update-claude-cost --burn 285                   Set recent monthly API burn
+#   update-claude-cost --throttle [args]            Record a throttle event:
+#       --surface chat|cowork|code                  Which surface hit the limit
+#       --reset-at "19:00"                          When the limit resets (HH:MM today)
+#       --reset-at "2026-04-29T09:00"               Or full ISO timestamp
+#       --context "<short note>"                    Optional context
+#   update-claude-cost --tier-test max-5x           Begin testing a smaller tier
+#   update-claude-cost --monthly-review             Generate the monthly decision-aid report
+#   update-claude-cost --reset                      New month (preserves history)
 # =============================================================================
 
 set -e
 COST_FILE=~/.claude/cumulative-cost.json
 ARCHIVE_DIR=~/.claude/cost-archive
-HELPER_DIR=~/.local/bin
-SKILLS_SOURCE_DIR="${SKILLS_SOURCE_DIR:-$HOME/dev/skills-source}"
+TALLY_FILE=~/.claude/cost-tally.txt
+EMIT_MODE=""
 mkdir -p ~/.claude "$ARCHIVE_DIR"
 
-# Initialize fresh v3.5.2 schema
+# Load admin API key from macOS Keychain if not already in env.
+# Managed by ~/.local/bin/anthropic-admin-key (service=anthropic-admin-api-key).
+if [[ -z "${ANTHROPIC_ADMIN_API_KEY:-}" && -r "$HOME/.local/lib/anthropic-admin-key.sh" ]]; then
+  # shellcheck disable=SC1091
+  source "$HOME/.local/lib/anthropic-admin-key.sh"
+fi
+
+# ---------------------------------------------------------------------------
+# emit_tally — single source of truth → rendered cost-tally block.
+# NOTHING downstream should hand-type these values.
+#   code        → ~/.claude/cost-tally.txt (Code; INCLUDES API pool + resets)
+#   chat|cowork|l4 → ~/.claude/cost-snapshot-<m>.txt (subscription ONLY —
+#                  NO API pool / Tools / refreshed; those are Code-only per
+#                  the L4/L2/L7 specs. Chat/Cowork can't spill to the pool.)
+# All values are read live from cumulative-cost.json (the only source).
+# ---------------------------------------------------------------------------
+emit_tally() {
+  local mode="$1"
+  local asof
+  asof=$(jq -r '[.subscription.session_limit.last_updated // empty,
+                 .subscription.weekly_all_models.last_updated // empty]
+                | (max // "unknown")' "$COST_FILE" 2>/dev/null)
+  asof="${asof:0:10}"
+  # Core = plan + ccusage + verdict + subscription limits (shared all surfaces)
+  local core
+  core=$(jq -r '
+    .subscription as $s | .value_signal as $v
+    | (if $s.extra_usage_enabled == true then "ON" else "OFF" end) as $extra
+    | ($s.plan_transition // {}) as $pt
+    | "Plan \($s.plan) $\($s.monthly_fee_usd)/mo (renews \($s.renewal_date // "?")"
+      + (if $pt.to_plan then " → \($pt.to_plan) $\($pt.to_fee_usd)/mo" else "" end)
+      + ", Extra \($extra)) · ccusage \($v.ratio_to_plan_fee)× \($v.verdict)"
+      + " · Limits Sess \($s.session_limit.percent_used // "?")%,"
+      + " Wk \($s.weekly_all_models.percent_used // "?")%/\($s.weekly_sonnet_only.percent_used // "?")%/\($s.weekly_claude_design.percent_used // "?")%,"
+      + " Throttle \($s.throttle_hits_mtd // 0)"
+  ' "$COST_FILE")
+  local api_seg
+  api_seg=$(jq -r '.api_pool as $a | " · API pool $\($a.current_spend // 0)/$\($a.customer_limit // 0) (\($a.tier_name // "Tier ?"), resets \($a.resets_on // "?"))"' "$COST_FILE")
+  local wk_resets
+  wk_resets=$(jq -r '.subscription.weekly_all_models.resets_at // "?"' "$COST_FILE")
+  local suffix=" (as of ${asof}, weekly resets ${wk_resets})"
+  local code_block="${core}${api_seg}${suffix}"      # Code: with API pool
+  local sub_block="${core}${suffix}"                  # Chat/Cowork/L4: NO API pool
+
+  case "$mode" in
+    code)
+      {
+        echo "# auto-generated by: update-claude-cost --emit code · $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        echo "# Model: copy the line below VERBATIM as cost-tally line 2. Do NOT hand-type these values."
+        echo "$code_block"
+      } > "$TALLY_FILE"
+      echo "✓ wrote $TALLY_FILE"
+      ;;
+    chat|cowork|l4)
+      local label="$mode"; [[ "$mode" == l4 ]] && label="L4 (claude.ai → Settings → Profile → Preferences)"
+      local snap_file=~/.claude/cost-snapshot-${mode}.txt
+      {
+        echo "# auto-generated by: update-claude-cost --emit ${mode} · $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        echo "# PASTE the line below into ${label} instructions, replacing the previous 'Cost (static' line. Never hand-edit the numbers. (Subscription only — NO API pool/Tools: Code-only.)"
+        echo "Cost (static snapshot — regenerate with \`update-claude-cost --emit ${mode}\`; never hand-edit): ${sub_block}"
+      } > "$snap_file"
+      echo ""
+      echo "──── PASTE into ${label} (also saved to ${snap_file}) ────"
+      sed -n '3p' "$snap_file"
+      echo "End every response: \`Cost: ~Xk in / ~Y out · \$Z.ZZ\` then the static snapshot line above, verbatim."
+      echo "────────────────────────────────────────────────────────────────────────────"
+      ;;
+    *)
+      echo "unknown --emit mode: '$mode' (use: code | chat | cowork | l4)" >&2
+      return 1 ;;
+  esac
+}
+
+# Initialize if missing
 if [[ ! -f "$COST_FILE" ]]; then
   CURRENT_MONTH=$(date +%Y-%m)
   cat > "$COST_FILE" << JSONEOF
 {
   "month": "$CURRENT_MONTH",
-  "schema_version": "3.5.2",
+  "schema_version": "3.4.1",
   "subscription": {
-    "plan": "YOUR_PLAN_NAME",
-    "monthly_fee_usd": 0,
+    "plan": "max-20x",
+    "monthly_fee_usd": 200,
     "renewal_date": null,
-    "extra_usage_enabled": false,
-    "session_limit": {"percent_used": 0, "resets_at": null, "last_updated": null},
-    "weekly_all_models": {"percent_used": 0, "resets_at": null, "last_updated": null},
-    "weekly_sonnet_only": {"percent_used": 0, "resets_at": null, "last_updated": null},
     "throttle_events": [],
     "throttle_hits_mtd": 0,
-    "throttle_hits_since_last_reset": 0,
-    "throttle_breakdown_since_reset": {"usage_limit": 0, "tool_limit": 0},
-    "window_started_at": null,
-    "next_reset_at": null,
     "total_downtime_mtd_minutes": 0
   },
   "api_pool": {
-    "tier_name": null,
-    "tier_ceiling": 0.00,
-    "customer_limit": 0.00,
-    "current_spend": 0.00,
     "credit_balance": 0.00,
-    "auto_reload_threshold": 0,
-    "auto_reload_amount": 0,
-    "alerts_at": [],
-    "resets_on": null,
-    "rate_limits": {"rpm": 0, "input_tpm": 0, "output_tpm": 0},
-    "admin_api_key_set": false,
-    "last_updated": null
+    "balance_updated": null,
+    "auto_reload_threshold": 5,
+    "auto_reload_amount": 15,
+    "recent_monthly_burn": 0.00,
+    "active": false
   },
   "value_signal": {
     "ccusage_mtd": 0.00,
@@ -67,127 +133,99 @@ if [[ ! -f "$COST_FILE" ]]; then
     "downgrade_candidate": false
   },
   "tier_test": {
-    "last_test": null, "next_check": null, "candidate_plan": null,
-    "candidate_fee": null, "test_status": "none"
+    "last_test": null,
+    "next_check": null,
+    "candidate_plan": null,
+    "candidate_fee": null,
+    "test_status": "none"
   }
 }
 JSONEOF
-  echo "Initialized v3.5.2 schema at $COST_FILE"
-  echo "Run: update-claude-cost --plan <name> --fee <amount> --renews <YYYY-MM-DD>"
+  echo "Initialized $COST_FILE for month $CURRENT_MONTH"
 fi
 
-# Migrate from v3.4.x or v3.5.0/v3.5.1 → v3.5.2
-migrate() {
-  SCHEMA=$(jq -r '.schema_version // "unknown"' "$COST_FILE")
-  if [[ "$SCHEMA" == "3.5.2" ]]; then
-    return 0
-  fi
-
-  echo "▸ Migrating $SCHEMA → 3.5.2"
-  cp "$COST_FILE" "$ARCHIVE_DIR/cumulative-cost-pre-3.5.2-$(date +%Y%m%d-%H%M%S).json"
-
-  jq '
-    .schema_version = "3.5.2"
-    | .subscription.extra_usage_enabled //= (.extra_usage.enabled // false)
-    | .subscription.session_limit //= {"percent_used": 0, "resets_at": null, "last_updated": null}
-    | .subscription.weekly_all_models //= {"percent_used": 0, "resets_at": null, "last_updated": null}
-    | .subscription.weekly_sonnet_only //= {"percent_used": 0, "resets_at": null, "last_updated": null}
-    | (if .api_direct then .api_pool = .api_direct else . end)
-    | (if .api_pool == null then
-        .api_pool = {
-          "tier_name": null, "tier_ceiling": 0, "customer_limit": 0,
-          "current_spend": 0, "credit_balance": 0,
-          "auto_reload_threshold": 0, "auto_reload_amount": 0,
-          "alerts_at": [], "resets_on": null,
-          "rate_limits": {"rpm": 0, "input_tpm": 0, "output_tpm": 0},
-          "admin_api_key_set": false, "last_updated": null
-        }
-       else . end)
-    | del(.extra_usage)
-    | del(.api_direct)
-  ' "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
-
-  echo "✓ Migrated to v3.5.2"
-}
-migrate
-
-# New month detection
+# Auto-detect new month (skip on --reset and --monthly-review)
 CURRENT_MONTH=$(date +%Y-%m)
 STORED_MONTH=$(jq -r .month "$COST_FILE")
-if [[ "$STORED_MONTH" != "$CURRENT_MONTH" && "$1" != "--reset" && "$1" != "--monthly-review" && "$1" != "--migrate" ]]; then
-  echo "⚠ New month: stored=$STORED_MONTH, current=$CURRENT_MONTH. Run --monthly-review then --reset."
+if [[ "$STORED_MONTH" != "$CURRENT_MONTH" && "$1" != "--reset" && "$1" != "--monthly-review" ]]; then
+  echo "⚠ New month: stored=$STORED_MONTH, current=$CURRENT_MONTH"
+  echo "  Run: update-claude-cost --monthly-review (to see last month's decision aid)"
+  echo "  Then: update-claude-cost --reset (to start the new month)"
   exit 1
 fi
 
-# Auto-clear expired throttle reset window
-NEXT_RESET=$(jq -r '.subscription.next_reset_at // "null"' "$COST_FILE")
-if [[ "$NEXT_RESET" != "null" && "$NEXT_RESET" != "" ]]; then
-  EXPIRED=$(python3 -c "
-from datetime import datetime, timezone
-try:
-    rst = datetime.fromisoformat('$NEXT_RESET'.replace('Z', '+00:00'))
-    print(1 if datetime.now(timezone.utc) > rst else 0)
-except Exception:
-    print(0)
-")
-  if [[ "$EXPIRED" == "1" ]]; then
-    jq '.subscription.throttle_hits_since_last_reset = 0
-        | .subscription.throttle_breakdown_since_reset = {"usage_limit": 0, "tool_limit": 0}
-        | .subscription.window_started_at = null
-        | .subscription.next_reset_at = null' \
-       "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
-  fi
-fi
-
-# Recompute verdict
+# Recompute aggregates
 recompute() {
   CCUSAGE=$(jq .value_signal.ccusage_mtd "$COST_FILE")
   FEE=$(jq .subscription.monthly_fee_usd "$COST_FILE")
   THROTTLE=$(jq .subscription.throttle_hits_mtd "$COST_FILE")
   DOWNTIME=$(jq .subscription.total_downtime_mtd_minutes "$COST_FILE")
 
-  if (( $(python3 -c "print(1 if $FEE == 0 else 0)") )); then RATIO="0.00"
-  else RATIO=$(python3 -c "print(round($CCUSAGE / $FEE, 2))"); fi
-
-  if (( $(python3 -c "print(1 if $CCUSAGE == 0 else 0)") )); then
-    VERDICT="no data — run --code"; DOWNGRADE="false"
-  elif (( $(python3 -c "print(1 if $RATIO < 0.5 else 0)") )); then
-    VERDICT="STRONG DOWNGRADE"; DOWNGRADE="true"
-  elif (( $(python3 -c "print(1 if $RATIO < 1.0 else 0)") )); then
-    VERDICT="BELOW BREAK-EVEN"; DOWNGRADE="true"
-  elif (( $(python3 -c "print(1 if $RATIO < 3.0 else 0)") )); then
-    VERDICT="PLAN JUSTIFIED"; DOWNGRADE="false"
-  elif (( $(python3 -c "print(1 if $THROTTLE >= 3 or $DOWNTIME >= 500 else 0)") )); then
-    VERDICT="PLAN CORRECTLY SIZED"; DOWNGRADE="false"
-  elif (( $(python3 -c "print(1 if $THROTTLE > 0 else 0)") )); then
-    VERDICT="WORKING WELL"; DOWNGRADE="false"
+  if (( $(python3 -c "print(1 if $FEE == 0 else 0)") )); then
+    RATIO="0.00"
   else
-    VERDICT="DOWNGRADE CANDIDATE"; DOWNGRADE="true"
+    RATIO=$(python3 -c "print(round($CCUSAGE / $FEE, 2))")
+  fi
+
+  # Verdict: combines ratio + throttle + downtime
+  if (( $(python3 -c "print(1 if $CCUSAGE == 0 else 0)") )); then
+    VERDICT="no data — run --code"
+    DOWNGRADE="false"
+  elif (( $(python3 -c "print(1 if $RATIO < 0.5 else 0)") )); then
+    VERDICT="⚠ under-utilizing — strong downgrade signal"
+    DOWNGRADE="true"
+  elif (( $(python3 -c "print(1 if $RATIO < 1.0 else 0)") )); then
+    VERDICT="⚠ below break-even"
+    DOWNGRADE="true"
+  elif (( $(python3 -c "print(1 if $RATIO < 3.0 else 0)") )); then
+    VERDICT="✓ plan justified ($RATIO×, no concerns)"
+    DOWNGRADE="false"
+  elif (( $(python3 -c "print(1 if $THROTTLE >= 3 or $DOWNTIME >= 500 else 0)") )); then
+    VERDICT="✓ saturated — plan correctly sized ($RATIO×, $THROTTLE hits, ${DOWNTIME}min downtime)"
+    DOWNGRADE="false"
+  elif (( $(python3 -c "print(1 if $THROTTLE > 0 else 0)") )); then
+    VERDICT="✓ working well ($RATIO×, $THROTTLE minor throttle hits) — plan size right"
+    DOWNGRADE="false"
+  else
+    VERDICT="✓ extracting $RATIO× value, no throttling — DOWNGRADE CANDIDATE"
+    DOWNGRADE="true"
   fi
 
   jq --argjson r "$RATIO" --arg v "$VERDICT" --argjson d "$([ "$DOWNGRADE" = "true" ] && echo true || echo false)" \
-     '.value_signal.ratio_to_plan_fee = $r | .value_signal.verdict = $v | .value_signal.downgrade_candidate = $d' \
+     '.value_signal.ratio_to_plan_fee = $r
+      | .value_signal.verdict = $v
+      | .value_signal.downgrade_candidate = $d' \
      "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
+
+  BURN=$(jq -r ".api_pool.recent_monthly_burn // 0" "$COST_FILE")
+  if (( $(python3 -c "print(1 if $BURN > 5 else 0)") )); then
+    ACTIVE=true
+  else
+    ACTIVE=false
+  fi
+  jq --argjson a "$ACTIVE" '.api_pool.active = $a' "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
 }
 
+# Convert HH:MM (today) or full ISO to ISO timestamp
 to_iso_timestamp() {
   local input="$1"
   if [[ "$input" =~ ^[0-9]{2}:[0-9]{2}$ ]]; then
-    echo "$(date +%Y-%m-%dT${input}:00%z | sed 's/\([+-][0-9][0-9]\)\([0-9][0-9]\)/\1:\2/')"
-  elif [[ "$input" =~ ^([0-9]+)h\ ?([0-9]*)m?$ ]]; then
-    HRS="${match[1]}"; MIN="${match[2]:-0}"
-    [[ -z "$MIN" ]] && MIN=0
-    python3 -c "
-from datetime import datetime, timezone, timedelta
-print((datetime.now(timezone.utc) + timedelta(hours=$HRS, minutes=$MIN)).strftime('%Y-%m-%dT%H:%M:%SZ'))"
-  else echo "$input"; fi
+    # HH:MM today
+    echo "$(date +%Y-%m-%d)T${input}:00Z"
+  else
+    # Assume already ISO
+    echo "$input"
+  fi
 }
 
+# Throttle event handling
 record_throttle() {
-  local TYPE="usage_limit" SURFACE="unknown" RESET_AT="" CONTEXT=""
+  local SURFACE="unknown"
+  local RESET_AT=""
+  local CONTEXT=""
+
   while [[ $# -gt 0 ]]; do
     case "$1" in
-      --type) TYPE="$2"; shift 2 ;;
       --surface) SURFACE="$2"; shift 2 ;;
       --reset-at) RESET_AT=$(to_iso_timestamp "$2"); shift 2 ;;
       --context) CONTEXT="$2"; shift 2 ;;
@@ -195,11 +233,11 @@ record_throttle() {
     esac
   done
 
-  if [[ "$TYPE" != "usage_limit" && "$TYPE" != "tool_limit" ]]; then
-    echo "✗ Invalid --type: $TYPE"; return 1
-  fi
+  local NOW
+  NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 
-  local NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ) DOWNTIME=0
+  # Compute downtime if reset_at provided
+  local DOWNTIME=0
   if [[ -n "$RESET_AT" ]]; then
     DOWNTIME=$(python3 -c "
 from datetime import datetime
@@ -207,184 +245,291 @@ try:
     now = datetime.fromisoformat('$NOW'.replace('Z','+00:00'))
     rst = datetime.fromisoformat('$RESET_AT'.replace('Z','+00:00'))
     print(max(0, int((rst - now).total_seconds() / 60)))
-except Exception: print(0)")
+except Exception as e:
+    print(0)
+")
   fi
 
-  EXISTING_RESET=$(jq -r '.subscription.next_reset_at // "null"' "$COST_FILE")
-  if [[ "$EXISTING_RESET" == "null" || "$EXISTING_RESET" == "" ]]; then
-    jq --arg ts "$NOW" --arg surf "$SURFACE" --arg rst "$RESET_AT" --argjson dt "$DOWNTIME" --arg ctx "$CONTEXT" --arg t "$TYPE" \
-       '.subscription.throttle_events += [{"timestamp": $ts, "type": $t, "surface": $surf, "reset_at": ($rst | if . == "" then null else . end), "downtime_minutes": $dt, "context": ($ctx | if . == "" then null else . end)}]
-        | .subscription.throttle_hits_mtd += 1
-        | .subscription.throttle_hits_since_last_reset = 1
-        | .subscription.throttle_breakdown_since_reset[$t] = 1
-        | .subscription.window_started_at = $ts
-        | .subscription.next_reset_at = ($rst | if . == "" then null else . end)
-        | .subscription.total_downtime_mtd_minutes += $dt' \
-       "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
-    echo "✓ Throttle ($TYPE, $SURFACE) — new reset window"
-  else
-    jq --arg ts "$NOW" --arg surf "$SURFACE" --arg rst "$RESET_AT" --argjson dt "$DOWNTIME" --arg ctx "$CONTEXT" --arg t "$TYPE" \
-       '.subscription.throttle_events += [{"timestamp": $ts, "type": $t, "surface": $surf, "reset_at": ($rst | if . == "" then null else . end), "downtime_minutes": $dt, "context": ($ctx | if . == "" then null else . end)}]
-        | .subscription.throttle_hits_mtd += 1
-        | .subscription.throttle_hits_since_last_reset += 1
-        | .subscription.throttle_breakdown_since_reset[$t] += 1
-        | .subscription.total_downtime_mtd_minutes += $dt' \
-       "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
-    echo "✓ Throttle ($TYPE) — total since reset: $(jq -r .subscription.throttle_hits_since_last_reset $COST_FILE)"
-  fi
+  jq --arg ts "$NOW" --arg surf "$SURFACE" --arg rst "$RESET_AT" --argjson dt "$DOWNTIME" --arg ctx "$CONTEXT" \
+     '.subscription.throttle_events += [{
+        "timestamp": $ts,
+        "surface": $surf,
+        "reset_at": ($rst | if . == "" then null else . end),
+        "downtime_minutes": $dt,
+        "context": ($ctx | if . == "" then null else . end)
+      }]
+      | .subscription.throttle_hits_mtd += 1
+      | .subscription.total_downtime_mtd_minutes += $dt' \
+     "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
+
+  echo "✓ Throttle event recorded: $SURFACE${RESET_AT:+ (resets at $RESET_AT, ${DOWNTIME}min downtime)}"
 }
 
+# Monthly review report
 monthly_review() {
-  echo "════════════════════════════════════════════════════"
-  echo "  Monthly Review — $(jq -r .month $COST_FILE)"
-  echo "════════════════════════════════════════════════════"
+  echo ""
+  echo "════════════════════════════════════════════════════════════"
+  echo "  Monthly Subscription Review — $(jq -r .month $COST_FILE)"
+  echo "════════════════════════════════════════════════════════════"
+  echo ""
   jq -r '
-    "Plan:           \(.subscription.plan) at $\(.subscription.monthly_fee_usd)/mo (renews \(.subscription.renewal_date // "?"))",
-    "ccusage MTD:    $\(.value_signal.ccusage_mtd) (\(.value_signal.ratio_to_plan_fee)× plan fee)",
-    "Throttle:       \(.subscription.throttle_hits_mtd) hits, \(.subscription.total_downtime_mtd_minutes) min downtime",
-    "Verdict:        \(.value_signal.verdict)",
-    "API pool:       $\(.api_pool.current_spend) of $\(.api_pool.customer_limit) cap (\(.api_pool.tier_name // "?"))"
+    "Plan:           \(.subscription.plan) at $\(.subscription.monthly_fee_usd)/mo",
+    "Value extracted: $\(.value_signal.ccusage_mtd) (\(.value_signal.ratio_to_plan_fee)× plan fee)",
+    "Throttle hits:  \(.subscription.throttle_hits_mtd)",
+    "Total downtime: \(.subscription.total_downtime_mtd_minutes) minutes",
+    ""
   ' "$COST_FILE"
+
+  echo "Verdict: $(jq -r .value_signal.verdict $COST_FILE)"
+  echo ""
+
+  RATIO=$(jq .value_signal.ratio_to_plan_fee $COST_FILE)
+  THROTTLE=$(jq .subscription.throttle_hits_mtd $COST_FILE)
+  DOWNTIME=$(jq .subscription.total_downtime_mtd_minutes $COST_FILE)
+  PLAN=$(jq -r .subscription.plan $COST_FILE)
+
+  echo "DECISION AID:"
+  if (( $(python3 -c "print(1 if $RATIO >= 3 and $THROTTLE >= 3 else 0)") )) || (( $(python3 -c "print(1 if $DOWNTIME >= 500 else 0)") )); then
+    echo "  → PLAN CORRECTLY SIZED. Stay on $PLAN."
+    echo "    High value extraction + throttle hits = saturated subscription."
+  elif (( $(python3 -c "print(1 if $RATIO >= 1 and $THROTTLE == 0 else 0)") )); then
+    echo "  → DOWNGRADE CANDIDATE."
+    echo "    Good value but no throttling means you're not using the plan's headroom."
+    echo "    Consider testing the next-smaller tier next cycle."
+    echo "    To start a test: update-claude-cost --tier-test <smaller-plan>"
+  elif (( $(python3 -c "print(1 if $RATIO < 1 else 0)") )); then
+    echo "  → DOWNGRADE STRONGLY RECOMMENDED."
+    echo "    You're not breaking even on the subscription."
+  else
+    echo "  → MONITOR ANOTHER CYCLE."
+    echo "    Mixed signals — wait one more month before changing the plan."
+  fi
+  echo ""
 }
 
 # Parse args
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --code)
-      command -v ccusage &>/dev/null || { echo "ccusage not installed — see https://github.com/ryoppippi/ccusage"; exit 1; }
+      if ! command -v ccusage &>/dev/null; then
+        echo "ccusage not installed. Run: npm install -g ccusage"
+        exit 1
+      fi
       MTD=$(ccusage --since "$(date +%Y%m01)" --until "$(date +%Y%m%d)" --json 2>/dev/null \
             | jq -r '.totals.totalCost // 0' 2>/dev/null \
             | python3 -c "import sys; v=sys.stdin.read().strip(); print(round(float(v) if v and v != 'null' else 0, 2))" 2>/dev/null \
             || echo "0.00")
       [[ -z "$MTD" || "$MTD" == "null" ]] && MTD="0.00"
       jq --argjson mtd "$MTD" '.value_signal.ccusage_mtd = $mtd' "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
-      echo "✓ ccusage MTD: \$$MTD"
-      shift ;;
-    --pull-api-spend)
-      [[ ! -f "$HELPER_DIR/admin-api-pull.py" ]] && { echo "✗ admin-api-pull.py not found in $HELPER_DIR"; exit 1; }
-      python3 "$HELPER_DIR/admin-api-pull.py" "$COST_FILE"
-      shift ;;
-    --plan)        jq --arg p "$2" '.subscription.plan = $p' "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"; shift 2 ;;
-    --fee)         jq --argjson v "$2" '.subscription.monthly_fee_usd = $v' "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"; shift 2 ;;
-    --renews)      jq --arg d "$2" '.subscription.renewal_date = $d' "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"; shift 2 ;;
-    --extra-enabled)
-      VAL=$([ "$2" = "true" ] && echo true || echo false)
-      jq --argjson v "$VAL" '.subscription.extra_usage_enabled = $v' "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
+      echo "✓ ccusage MTD refreshed: \$$MTD"
+      shift
+      ;;
+    --plan)
+      jq --arg p "$2" '.subscription.plan = $p' "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
       shift 2 ;;
-    --session-percent)
-      jq --argjson v "$2" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-         '.subscription.session_limit.percent_used = $v | .subscription.session_limit.last_updated = $ts' \
+    --fee)
+      jq --argjson v "$2" '.subscription.monthly_fee_usd = $v' "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
+      shift 2 ;;
+    --balance)
+      NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+      jq --argjson v "$2" --arg n "$NOW" \
+         '.api_pool.credit_balance = $v | .api_pool.balance_updated = $n' \
+         "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
+      echo "✓ API pool balance: \$$2"
+      shift 2 ;;
+    --burn)
+      jq --argjson v "$2" '.api_pool.recent_monthly_burn = $v' "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
+      shift 2 ;;
+    --set-session)
+      # update session_limit.percent_used + last_updated. Pasted from claude.ai/settings/usage.
+      NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+      jq --argjson p "$2" --arg n "$NOW" \
+         '.subscription.session_limit.percent_used = $p
+          | .subscription.session_limit.last_updated = $n' \
+         "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
+      echo "✓ session limit: $2% used (as of $NOW)"
+      shift 2 ;;
+    --set-session-resets-in)
+      # human-readable "Resets in 2h 53min" — store as-is
+      jq --arg s "$2" '.subscription.session_limit.resets_in = $s' "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
+      shift 2 ;;
+    --set-weekly-all)
+      NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+      jq --argjson p "$2" --arg n "$NOW" \
+         '.subscription.weekly_all_models.percent_used = $p
+          | .subscription.weekly_all_models.last_updated = $n' \
+         "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
+      echo "✓ weekly (all models): $2% used (as of $NOW)"
+      shift 2 ;;
+    --set-weekly-sonnet)
+      NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+      jq --argjson p "$2" --arg n "$NOW" \
+         '.subscription.weekly_sonnet_only.percent_used = $p
+          | .subscription.weekly_sonnet_only.last_updated = $n' \
+         "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
+      echo "✓ weekly (sonnet only): $2% used (as of $NOW)"
+      shift 2 ;;
+    --set-weekly-design)
+      NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+      jq --argjson p "$2" --arg n "$NOW" \
+         '.subscription.weekly_claude_design = (.subscription.weekly_claude_design // {})
+          | .subscription.weekly_claude_design.percent_used = $p
+          | .subscription.weekly_claude_design.last_updated = $n
+          | .subscription.weekly_claude_design.resets_at = "Sun 10:00"' \
+         "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
+      echo "✓ weekly (claude design): $2% used (as of $NOW)"
+      shift 2 ;;
+    --set-weekly-resets-at)
+      # e.g. "Sun 9:59 AM"
+      jq --arg s "$2" \
+         '.subscription.weekly_all_models.resets_at = $s
+          | .subscription.weekly_sonnet_only.resets_at = $s
+          | .subscription.weekly_claude_design.resets_at = $s' \
          "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
       shift 2 ;;
-    --resets-in)
-      RST_TS=$(to_iso_timestamp "$2")
-      jq --arg t "$RST_TS" '.subscription.session_limit.resets_at = $t' "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
+    --set-extra-usage)
+      # on | off
+      ENABLED=$([ "$2" = "on" ] && echo true || echo false)
+      jq --argjson v "$ENABLED" '.subscription.extra_usage_enabled = $v' "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
+      echo "✓ extra usage: $2"
       shift 2 ;;
-    --weekly-all)
-      jq --argjson v "$2" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-         '.subscription.weekly_all_models.percent_used = $v | .subscription.weekly_all_models.last_updated = $ts' \
+    --set-renewal)
+      jq --arg d "$2" '.subscription.renewal_date = $d' "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
+      echo "✓ renewal date: $2"
+      shift 2 ;;
+    --set-daily-routines)
+      # e.g. --set-daily-routines 0 15
+      NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+      jq --argjson u "$2" --argjson t "$3" --arg n "$NOW" \
+         '.subscription.daily_routines = {"used": $u, "total": $t, "last_updated": $n}' \
          "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
-      shift 2 ;;
-    --weekly-sonnet)
-      jq --argjson v "$2" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-         '.subscription.weekly_sonnet_only.percent_used = $v | .subscription.weekly_sonnet_only.last_updated = $ts' \
+      echo "✓ daily routines: $2/$3 (as of $NOW)"
+      shift 3 ;;
+    --set-plan-transition)
+      # records an upcoming auto-downgrade. usage:
+      #   --set-plan-transition --on 2026-05-21 --to max-5x --fee 100
+      shift
+      T_ON=""; T_TO=""; T_FEE=""
+      while [[ $# -gt 0 ]]; do
+        case "$1" in
+          --on)  T_ON="$2";  shift 2 ;;
+          --to)  T_TO="$2";  shift 2 ;;
+          --fee) T_FEE="$2"; shift 2 ;;
+          *) break ;;
+        esac
+      done
+      jq --arg o "$T_ON" --arg t "$T_TO" --argjson f "${T_FEE:-0}" \
+         '.subscription.plan_transition = {"scheduled_on": $o, "to_plan": $t, "to_fee_usd": $f}' \
          "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
-      shift 2 ;;
-    --weekly-resets)
-      jq --arg s "$2" '.subscription.weekly_all_models.resets_at = $s | .subscription.weekly_sonnet_only.resets_at = $s' \
-         "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
-      shift 2 ;;
-    --api-spend)
-      jq --argjson v "$2" --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-         '.api_pool.current_spend = $v | .api_pool.last_updated = $ts' \
-         "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
-      shift 2 ;;
-    --api-limit)        jq --argjson v "$2" '.api_pool.customer_limit = $v' "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"; shift 2 ;;
-    --api-tier)         jq --arg t "$2" '.api_pool.tier_name = $t' "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"; shift 2 ;;
-    --api-tier-ceiling) jq --argjson v "$2" '.api_pool.tier_ceiling = $v' "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"; shift 2 ;;
-    --api-balance)      jq --argjson v "$2" '.api_pool.credit_balance = $v' "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"; shift 2 ;;
-    --api-resets)       jq --arg d "$2" '.api_pool.resets_on = $d' "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"; shift 2 ;;
-
+      echo "✓ plan transition scheduled: $T_ON → $T_TO at \$$T_FEE/mo"
+      ;;
     --throttle)
-      shift; record_throttle "$@"
-      while [[ $# -gt 0 && "$1" =~ ^-- ]]; do
-        case "$1" in --type|--surface|--reset-at|--context) shift 2 ;; *) shift ;; esac
-      done ;;
-
+      shift
+      record_throttle "$@"
+      # consume the rest of args that belong to throttle
+      while [[ $# -gt 0 && "$1" =~ ^-- ]]; do shift; done
+      ;;
     --tier-test)
-      NEXT=$(date -v+1m +%Y-%m-%d 2>/dev/null || date -d '+1 month' +%Y-%m-%d)
-      jq --arg p "$2" --arg d "$NEXT" \
-         '.tier_test.candidate_plan = $p | .tier_test.next_check = $d | .tier_test.test_status = "in-progress" | .tier_test.last_test = (now | todate)' \
+      NEXT_CHECK=$(date -v+1m +%Y-%m-%d 2>/dev/null || date -d '+1 month' +%Y-%m-%d)
+      jq --arg p "$2" --arg d "$NEXT_CHECK" \
+         '.tier_test.candidate_plan = $p
+          | .tier_test.next_check = $d
+          | .tier_test.test_status = "in-progress"
+          | .tier_test.last_test = (now | todate)' \
          "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
+      echo "✓ Tier test started: $2 (review on $NEXT_CHECK)"
       shift 2 ;;
-
-    --monthly-review) monthly_review; exit 0 ;;
-    --migrate) shift ;;
-
-    --emit-l7)
-      L7_DIR="${SKILLS_SOURCE_DIR}/chat-instructions"
-      [[ ! -d "$L7_DIR" ]] && { echo "✗ $L7_DIR not found — set SKILLS_SOURCE_DIR or create directory"; shift; continue; }
-      [[ ! -f "$HELPER_DIR/emit-l7-helper.py" ]] && { echo "✗ emit-l7-helper.py not found in $HELPER_DIR"; shift; continue; }
-      python3 "$HELPER_DIR/emit-l7-helper.py" "$COST_FILE" "$L7_DIR"
+    --emit)
+      EMIT_MODE="$2"; shift 2 ;;
+    --emit-l3-global)   # LaunchAgent alias → Code cost-tally.txt
+      EMIT_MODE="code"; shift ;;
+    --emit-l7)          # LaunchAgent alias → Chat global snapshot
+      EMIT_MODE="chat"; shift ;;
+    --emit-l2)          # LaunchAgent alias → Cowork global snapshot
+      EMIT_MODE="cowork"; shift ;;
+    --emit-l4)          # LaunchAgent alias → L4 universal profile snapshot
+      EMIT_MODE="l4"; shift ;;
+    --pull-api-spend)
+      # Auto-pull api_pool.current_spend from the Anthropic Admin API.
+      # Recognised explicitly (was a silent no-op via the catch-all).
+      if [[ -n "$ANTHROPIC_ADMIN_API_KEY" ]] && command -v curl &>/dev/null; then
+        SPEND=$(curl -s -m 15 -H "x-api-key: $ANTHROPIC_ADMIN_API_KEY" \
+          -H "anthropic-version: 2023-06-01" \
+          "https://api.anthropic.com/v1/organizations/cost?start_date=$(date +%Y-%m-01)" 2>/dev/null \
+          | jq -r '([.data[]?.amount // 0] | add) // empty' 2>/dev/null || echo "")
+        # Only write a CONFIRMED positive numeric amount — never clobber a
+        # known value with 0/empty on a bad parse (correctness > convenience).
+        if [[ "$SPEND" =~ ^[0-9]+(\.[0-9]+)?$ ]] && (( $(python3 -c "print(1 if float('$SPEND')>0 else 0)") )); then
+          NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          jq --argjson s "$SPEND" --arg n "$NOW" \
+             '.api_pool.current_spend = $s | .api_pool.last_updated = $n' \
+             "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
+          echo "✓ api_pool.current_spend pulled: \$$SPEND (as of $NOW)"
+        else
+          echo "⚠ --pull-api-spend: no confirmed positive amount from Admin API; api_pool.current_spend left UNCHANGED (set manually with --balance/--burn)."
+        fi
+      else
+        echo "⚠ --pull-api-spend: ANTHROPIC_ADMIN_API_KEY or curl unavailable; skipped (api_pool.current_spend unchanged)."
+      fi
       shift ;;
-
-    --emit-l2)
-      L2_FILE="${SKILLS_SOURCE_DIR}/cowork-instructions/_global.md"
-      [[ ! -f "$HELPER_DIR/emit-l7-helper.py" ]] && { echo "✗ emit-l7-helper.py not found in $HELPER_DIR"; shift; continue; }
-      python3 "$HELPER_DIR/emit-l7-helper.py" "$COST_FILE" - --l2 "$L2_FILE"
-      shift ;;
-
-    --emit-l3-global)
-      L3G_FILE="${HOME}/.claude/CLAUDE.md"
-      [[ ! -f "$HELPER_DIR/emit-l7-helper.py" ]] && { echo "✗ emit-l7-helper.py not found in $HELPER_DIR"; shift; continue; }
-      python3 "$HELPER_DIR/emit-l7-helper.py" "$COST_FILE" - --l3-global "$L3G_FILE"
-      shift ;;
-
+    --monthly-review)
+      monthly_review
+      exit 0
+      ;;
     --reset)
       cp "$COST_FILE" "$ARCHIVE_DIR/cumulative-cost-$(date +%Y-%m-%d).json"
       jq --arg m "$CURRENT_MONTH" \
-         '.month = $m | .value_signal.ccusage_mtd = 0
+         '.month = $m
+          | .value_signal.ccusage_mtd = 0.00
           | .subscription.throttle_hits_mtd = 0
-          | .subscription.throttle_hits_since_last_reset = 0
-          | .subscription.throttle_breakdown_since_reset = {"usage_limit": 0, "tool_limit": 0}
-          | .subscription.window_started_at = null | .subscription.next_reset_at = null
           | .subscription.total_downtime_mtd_minutes = 0
-          | .subscription.throttle_events = []
-          | .api_pool.current_spend = 0' \
+          | .subscription.throttle_events = []' \
          "$COST_FILE" > "$COST_FILE.tmp" && mv "$COST_FILE.tmp" "$COST_FILE"
+      echo "✓ Reset for $CURRENT_MONTH (archived to $ARCHIVE_DIR)"
       shift ;;
-
-    *) shift ;;
+    *)
+      shift ;;
   esac
 done
 
 recompute
 
+# Emit mode: render the single-source-of-truth block and exit (no human report).
+if [[ -n "$EMIT_MODE" ]]; then
+  emit_tally "$EMIT_MODE"
+  exit 0
+fi
+
 echo ""
-echo "════ Claude cost — month $(jq -r .month $COST_FILE) (v3.5.2) ════"
+echo "════ Claude cost — month $(jq -r .month $COST_FILE) ════"
 echo ""
 echo "▸ Subscription"
-jq -r '"  Plan: \(.subscription.plan) @ $\(.subscription.monthly_fee_usd)/mo · Renews: \(.subscription.renewal_date // "?") · Extra usage: \(if .subscription.extra_usage_enabled then "ON" else "OFF" end)",
-       "  Session: \(.subscription.session_limit.percent_used)% (resets: \(.subscription.session_limit.resets_at // "?"))",
-       "  Weekly: \(.subscription.weekly_all_models.percent_used)% all-models, \(.subscription.weekly_sonnet_only.percent_used)% sonnet (resets: \(.subscription.weekly_all_models.resets_at // "?"))",
-       "  Throttle MTD: \(.subscription.throttle_hits_mtd) (\(.subscription.total_downtime_mtd_minutes) min)",
-       "  Throttle since reset: \(.subscription.throttle_hits_since_last_reset) (usage: \(.subscription.throttle_breakdown_since_reset.usage_limit), tool: \(.subscription.throttle_breakdown_since_reset.tool_limit))"' "$COST_FILE"
+jq -r '"  Plan: \(.subscription.plan) at $\(.subscription.monthly_fee_usd)/mo",
+       "  Throttle hits this month: \(.subscription.throttle_hits_mtd) (\(.subscription.total_downtime_mtd_minutes) min downtime)"' "$COST_FILE"
 
 echo ""
-echo "▸ API pool (all pay-as-you-go)"
-jq -r '"  \(.api_pool.tier_name // "?") · $\(.api_pool.current_spend) of $\(.api_pool.customer_limit) cap · Tier ceiling: $\(.api_pool.tier_ceiling)",
-       "  Balance: $\(.api_pool.credit_balance) (auto-reload: $\(.api_pool.auto_reload_threshold) → $\(.api_pool.auto_reload_amount)) · Resets: \(.api_pool.resets_on // "?")",
-       "  Admin API: \(.api_pool.admin_api_key_set) · Last updated: \(.api_pool.last_updated // "never")"' "$COST_FILE"
+echo "▸ Subscription value"
+jq -r '"  ccusage MTD:  $\(.value_signal.ccusage_mtd) (retail-equivalent value)",
+       "  Value ratio:  \(.value_signal.ratio_to_plan_fee)× plan fee",
+       "  Verdict:      \(.value_signal.verdict)"' "$COST_FILE"
 
 echo ""
-echo "▸ Subscription value (ccusage retail-equivalent)"
-jq -r '"  $\(.value_signal.ccusage_mtd) (\(.value_signal.ratio_to_plan_fee)× plan fee) · \(.value_signal.verdict)"' "$COST_FILE"
+echo "▸ API pool (Console credits — for direct API usage)"
+jq -r '"  Balance: $\(.api_pool.credit_balance) (updated: \(.api_pool.balance_updated // "never"))",
+       "  Recent burn: $\(.api_pool.recent_monthly_burn // 0)/mo · Active: \(.api_pool.active)"' "$COST_FILE"
 
 THROTTLE_COUNT=$(jq '.subscription.throttle_events | length' "$COST_FILE")
 if [[ "$THROTTLE_COUNT" -gt 0 ]]; then
   echo ""
-  echo "▸ Recent throttles (last 5)"
-  jq -r '.subscription.throttle_events[-5:] | reverse | .[] | "  \(.timestamp[0:16]) · \(.type) · \(.surface) · \(.downtime_minutes)min"' "$COST_FILE"
+  echo "▸ Recent throttle events (last 5)"
+  jq -r '.subscription.throttle_events[-5:] | reverse | .[] | "  \(.timestamp[0:16]) · \(.surface) · \(.downtime_minutes)min · \(.context // "no context")"' "$COST_FILE"
+fi
+
+TIER_STATUS=$(jq -r .tier_test.test_status "$COST_FILE")
+if [[ "$TIER_STATUS" != "none" ]]; then
+  echo ""
+  echo "▸ Tier test in progress"
+  jq -r '"  Candidate: \(.tier_test.candidate_plan) · Status: \(.tier_test.test_status) · Next check: \(.tier_test.next_check)"' "$COST_FILE"
 fi
 
 echo ""

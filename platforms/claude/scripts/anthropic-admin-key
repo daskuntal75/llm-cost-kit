@@ -1,0 +1,145 @@
+#!/usr/bin/env zsh
+# anthropic-admin-key — manage the Anthropic admin API key in macOS Keychain.
+#
+# Subcommands:
+#   --store         Read a key from stdin (or prompt) and write it to Keychain.
+#   --print         Print the stored key to stdout (for pipes; never logged).
+#   --check         Make a cheap authenticated GET to verify the key works.
+#                   Requires `curl`. Exits 0 on 2xx, 1 otherwise. Body is suppressed.
+#   --clear         Delete the entry from Keychain.
+#   --status        Show whether an entry exists + last-modified date (no key value).
+#   -h | --help     This message.
+#
+# Service:  anthropic-admin-api-key
+# Account:  $USER
+#
+# Notes:
+# - Never echoes the key in --store; uses `read -s` so it's not in shell history.
+# - `--check` only sends a HEAD-like GET to /v1/organizations/me/limits (admin-scoped).
+# - All warnings to stderr; secret material never to stderr.
+
+set -u
+
+SERVICE="anthropic-admin-api-key"
+ACCOUNT="${USER:-$(id -un)}"
+
+usage() {
+  cat <<'EOF'
+anthropic-admin-key — manage the Anthropic admin API key in macOS Keychain.
+
+Subcommands:
+  --store     Read a key from stdin (or prompt silently) and write it to Keychain.
+  --print     Print the stored key to stdout (for pipes; never logged).
+  --check     Make a cheap authenticated call to verify the key works.
+  --clear     Delete the entry from Keychain.
+  --status    Show whether an entry exists (no key value).
+  -h|--help   This message.
+
+Service:  anthropic-admin-api-key
+Account:  $USER
+EOF
+}
+
+cmd_store() {
+  local key
+  if [ -t 0 ]; then
+    # Interactive: prompt with silent input.
+    printf "Paste Anthropic admin API key (input hidden): " >&2
+    IFS= read -rs key
+    printf "\n" >&2
+  else
+    # Piped: read one line.
+    IFS= read -r key
+  fi
+  if [ -z "${key:-}" ]; then
+    echo "anthropic-admin-key: empty key, aborting" >&2
+    return 2
+  fi
+  case "$key" in
+    sk-ant-admin01-*) : ;;
+    *)
+      echo "anthropic-admin-key: warning — key doesn't start with 'sk-ant-admin01-' (continuing)" >&2
+      ;;
+  esac
+  # -U updates if present, creates if not. -T '' restricts to default ACL.
+  if security add-generic-password \
+       -s "$SERVICE" -a "$ACCOUNT" -w "$key" -U \
+       -j "Anthropic Admin API key (managed by anthropic-admin-key)" \
+       2>/tmp/anthropic-admin-key.err
+  then
+    echo "anthropic-admin-key: stored (service=$SERVICE, account=$ACCOUNT)" >&2
+    rm -f /tmp/anthropic-admin-key.err
+    return 0
+  else
+    echo "anthropic-admin-key: failed to store key" >&2
+    cat /tmp/anthropic-admin-key.err >&2
+    rm -f /tmp/anthropic-admin-key.err
+    return 1
+  fi
+}
+
+cmd_print() {
+  local val
+  val=$(security find-generic-password -s "$SERVICE" -a "$ACCOUNT" -w 2>/dev/null) || {
+    echo "anthropic-admin-key: not found" >&2
+    return 1
+  }
+  printf "%s" "$val"
+}
+
+cmd_check() {
+  if ! command -v curl >/dev/null 2>&1; then
+    echo "anthropic-admin-key: curl not found" >&2
+    return 2
+  fi
+  local val http
+  val=$(security find-generic-password -s "$SERVICE" -a "$ACCOUNT" -w 2>/dev/null) || {
+    echo "anthropic-admin-key: not in Keychain" >&2
+    return 1
+  }
+  # Admin-scoped endpoint that returns small JSON on success, 401 on bad key.
+  http=$(curl -s -o /dev/null -w "%{http_code}" \
+           -H "x-api-key: $val" \
+           -H "anthropic-version: 2023-06-01" \
+           "https://api.anthropic.com/v1/organizations/usage_report/messages?starting_at=$(date -u -v-1d +%FT%TZ)&limit=1" \
+           2>/dev/null) || http="000"
+  unset val
+  case "$http" in
+    2*) echo "anthropic-admin-key: OK (HTTP $http)" >&2; return 0 ;;
+    401|403) echo "anthropic-admin-key: REJECTED (HTTP $http) — key invalid or revoked" >&2; return 1 ;;
+    000) echo "anthropic-admin-key: network/curl error" >&2; return 1 ;;
+    *)  echo "anthropic-admin-key: unexpected HTTP $http" >&2; return 1 ;;
+  esac
+}
+
+cmd_clear() {
+  if security delete-generic-password -s "$SERVICE" -a "$ACCOUNT" >/dev/null 2>&1; then
+    echo "anthropic-admin-key: cleared from Keychain" >&2
+    return 0
+  else
+    echo "anthropic-admin-key: nothing to clear (not found)" >&2
+    return 1
+  fi
+}
+
+cmd_status() {
+  local out
+  if out=$(security find-generic-password -s "$SERVICE" -a "$ACCOUNT" 2>/dev/null); then
+    echo "anthropic-admin-key: present in Keychain"
+    echo "$out" | awk '/"acct"/ || /"svce"/ || /"cdat"/ || /"mdat"/'
+    return 0
+  else
+    echo "anthropic-admin-key: NOT present in Keychain (service=$SERVICE, account=$ACCOUNT)"
+    return 1
+  fi
+}
+
+case "${1:-}" in
+  --store)  shift; cmd_store ;;
+  --print)  shift; cmd_print ;;
+  --check)  shift; cmd_check ;;
+  --clear)  shift; cmd_clear ;;
+  --status) shift; cmd_status ;;
+  -h|--help|"") usage; exit 0 ;;
+  *) echo "anthropic-admin-key: unknown subcommand '$1'" >&2; usage; exit 2 ;;
+esac
