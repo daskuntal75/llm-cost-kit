@@ -87,6 +87,12 @@ Then re-run `bash verify.sh` — the L3-global check confirms instruction files 
 
 Hourly pipeline auto-refreshes L2 + L3-global + L7 cost tally. See [`platforms/claude/scripts/cumulative-cost-launchagent.sh`](platforms/claude/scripts/cumulative-cost-launchagent.sh).
 
+## What's new in v3.9.2
+
+- **Squash-merge-aware drift checker** — the branch-cadence "Drift thresholds" rule in `platforms/claude/GLOBAL-CLAUDE.md` now leads with a tree-equality query (`git diff --quiet origin/main..origin/develop`) instead of the SHA-count one-liner. After a squash-merge from a release branch into `main`, the SHA count keeps reporting the original commits as "ahead" forever — even when trees are byte-identical — producing a permanent phantom 🔴 RED. Tree-equality is the canonical "no drift" gate; SHA count is the fallback when trees actually differ.
+- **`scripts/check_drift.sh` recipe** — guidance for projects to ship a per-repo drift checker with exit codes `0` / `1` / `2` mapped to green / amber / red, so cron + CI can gate on it.
+- **Merge-commit over squash for release-train PRs** — new one-liner under the table recommends `--no-ff` merges from `develop` → `main` to avoid producing phantom drift in the first place. Squash stays fine for small feature PRs into `develop`.
+
 ## What's new in v3.9.1
 
 - **Orchestrator status/report split (statusline TUI fix)** — the autonomous-`/loop` and scheduled-standup end-of-run report now writes **two** files, both overwritten (never appended): the full report → `~/.claude/orchestrator-phase.txt` (latest run only), and a **single line** → `~/.claude/orchestrator-status.txt`. The statusline reads ONLY the 1-line status file (hard-capped to its first line), so a growing report can never flood/illegibly fill the Claude Code prompt area. Fixes the failure mode where an append-only log + `cat`-the-whole-file statusline made the TUI unusable.

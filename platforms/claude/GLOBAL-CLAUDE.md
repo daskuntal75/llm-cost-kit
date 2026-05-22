@@ -125,7 +125,19 @@ Keep downstream branches close. Run the right E2E at the right cost. Prefer many
 
 ### Drift thresholds — check at session start + before opening any PR
 
-Quick query: `git fetch && git log origin/<base>..origin/<head> --oneline | wc -l`
+Quick query (squash-merge-aware — tree-equality first, commit count only when content actually differs):
+
+```bash
+# Genuine drift = tree content delta, not SHA count
+git fetch
+if git diff --quiet origin/main..origin/develop; then
+  echo "0 (trees identical)"
+else
+  git log origin/main..origin/develop --oneline | wc -l
+fi
+```
+
+For a repo with a drift-check script (e.g. `scripts/check_drift.sh`), wire it to use exit codes `0/1/2` for green/amber/red so cron + CI can gate on it.
 
 | Lag | 🟢 healthy | 🟡 amber (warn) | 🔴 red (stop) |
 |---|---|---|---|
@@ -136,6 +148,8 @@ Quick query: `git fetch && git log origin/<base>..origin/<head> --oneline | wc -
 
 **Amber → flag in status update; recommend opening release-train PR within 48 hr.**
 **Red → lead the response with the warning; refuse new feature PRs until lag clears (require explicit user override).**
+
+**Going forward, prefer merge-commit (`--no-ff`) over squash for release-train PRs to avoid phantom drift** — squash rewrites SHAs and leaves the originals reading as "ahead" of `main` permanently. Squash is still fine for small feature PRs into `develop`.
 
 Exemptions: planned release-freeze windows, hotfix branches.
 
