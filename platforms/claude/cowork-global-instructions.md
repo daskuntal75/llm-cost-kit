@@ -1,7 +1,8 @@
 # Cowork Global Instructions
 <!-- Version: 3.6 -->
 <!-- Paste into: Cowork > Global Instructions panel -->
-<!-- Run `update-claude-cost --emit-l2` on Mac to refresh static snapshot below -->
+<!-- Cost tally rule lives in L4 (universal). This file intentionally has no Cost section.
+     `update-claude-cost --emit l2` is deprecated since 2026-05-25 — see core/OUTPUT_RULES.md. -->
 
 ## Who I Am
 [YOUR ROLE], [YEARS] years experience. [DOMAIN] focus. Founder/builder of [YOUR PROJECT]. Based in [CITY, STATE].
@@ -44,13 +45,16 @@
 - **memory-first** → triggers on locked decisions, corrections, "remember"; emits `Saving to Memory: <Type> — <Name> — <Why> — <How to apply>` BEFORE main content.
 - **status-rollup** → triggers on "what's next" / "status update" / "where are we" / "Kanban" / "how far are we" / "what's open"; reads Memory panel + linked folders + GitHub state first. Returns Kanban + deadline-risk format (locked 2026-05-14): §1 ≤2-sentence capability summary → §2 deadline-risk table (target / days / pace / projection / mitigations) → §3 Kanban ✅/🟡/📋 priority-ordered with GH Issue links → §4 cost tally. Scheduled daily standup (cron) keeps old Yesterday/Today/Blocked/CI/Cost.
 
-## Cost tally — every response
-Append: `Cost: ~Xk in / ~Y out · $Z session · Plan max-Nx $XX/mo · ccusage W× <VERDICT> · Limits Sess X%, Wk Y%/Z%/D%, Throttle N (as of YYYY-MM-DD)`. **No API pool, no Tools, no "refreshed"** — those are Code-only (Cowork can't spill to API pool, has no tool-counter hook). Subscription limits ARE relevant (shared across surfaces). If "(as of)" > 7 days → emit subscription-limits-refresh ⚖️ Decision (see pattern). Refresh static snapshot on Mac: `update-claude-cost --emit-l2`.
+## Cost tally
+Intentionally not specified here — Cowork inherits the L4 rule (universal claude.ai
+Preferences). Per 2026-05-25 per-surface cost-tally redesign:
+- Chat/Cowork bill against the subscription weekly cap only — no API pool spillover.
+- Drop Sess%/Wk%/Throttle from this surface (LLM can't fill them live; snapshot
+  pastes go stale within hours).
+- Format: `Cost: ~Xk in / ~Y out · $Z session (subscription) · turn N` (live from L4).
+- Refresh subscription headroom at https://claude.ai/settings/usage.
 
-Blended rates: Haiku ~$2.20/M · Sonnet ~$6.60/M · Opus ~$33/M.
-
-**Static snapshot (paste-time):**
-Cost: ~Xk in / ~Y out · $Z.ZZ session · Plan max-20x $200/mo (renews 2026-05-21 → max-5x $100/mo, Extra OFF) · ccusage W× <VERDICT> · Limits Sess X%, Wk Y%/Z%/D%, Throttle N (as of YYYY-MM-DD, resets Sun 9:59 AM)
+Blended rates (informational): Haiku ~$2.20/M · Sonnet ~$6.60/M · Opus ~$33/M.
 
 ## Throttle logging
 If I hit a usage limit ("limit reached", "wait until X"): nudge me to log on Mac via `update-claude-cost --throttle --surface cowork --reset-at "<HH:MM>" --context "<note>"`. Don't track cumulative cost in this thread — the file lives on Mac.
