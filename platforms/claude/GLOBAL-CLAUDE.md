@@ -21,9 +21,22 @@ system-reminder on the next turn. Statusline shows the live indicator:
 **Idle > 5m → recommend `/clear`** (cache cold; `/compact` wastes money on a
 cold cache). **Idle ≤ 5m → recommend `/compact`** (cache warm, ~10% summary cost).
 
+**Handoff path is PROJECT + SESSION-scoped:**
+`~/.claude/projects/<encoded-cwd>/last-handoff-<session-short>.md`, where
+`<encoded-cwd>` = your cwd with every non-alphanumeric char replaced by `-`
+(consecutive dashes collapsed; same scheme Claude Code uses for project dirs),
+and `<session-short>` = the first segment of `$CLAUDE_CODE_SESSION_ID`.
+Project-scoping (2026-05-22) de-conflicts different cwds; session-scoping
+(2026-05-30) de-conflicts two concurrent sessions in the SAME repo, which
+previously shared one file and clobbered each other. Compute it yourself — do
+NOT trust `handoff-state.json`'s `handoff_file` field (a shared file the
+last-writing session overwrites):
+```bash
+echo "$HOME/.claude/projects/$(pwd | LC_ALL=C tr -c 'a-zA-Z0-9-' '-' | tr -s '-')/last-handoff-${CLAUDE_CODE_SESSION_ID%%-*}.md"
+```
+
 **Mandatory action when you see 🟡 or 🔴 in stderr or statusline:**
-Before doing anything else in your response, write/refresh
-`~/.claude/last-handoff.md` with this schema:
+Before doing anything else in your response, write/refresh that file with this schema:
 
 ```markdown
 # Handoff brief
@@ -43,7 +56,7 @@ _<session-id-short> · <ISO timestamp UTC>_
 
 ## Pickup prompt (paste this as first message after /clear or /compact)
 
-> Resume from `~/.claude/last-handoff.md`. <one-line context>.
+> Resume from `~/.claude/projects/<encoded-cwd>/last-handoff-<session-short>.md`. <one-line context>.
 > Next action: <one-line next step>. Read the brief, then proceed.
 ```
 
