@@ -132,6 +132,17 @@ When two or more concerns conflict, the higher-tier item wins:
 
 Never compromise a higher tier for a lower one.
 
+## Test-coverage Definition of Done (always active)
+
+Every PR that adds or changes feature behavior lands with tests in the SAME PR — no "tests in a follow-up," no test theater (a mirror that doesn't reflect real source is worse than no test).
+
+- **Net-new user-facing feature** → unit + E2E-regression + smoke (staging & prod) — all three.
+- **Bug fix** → a regression test that fails without the fix and passes with it.
+- **Auto-merge to `develop`** only when unit tests pass on the branch + the new E2E-regression + staging/prod smoke cases are added + full CI is green. Never auto-merge to `main`.
+- **No soft-gate overrides on red CI** — RCA every failure to 100% pass; a known infra flake gets a real resilience fix, never skip-to-green.
+
+For shared repos, put load-bearing rules in the repo's own git-tracked `CLAUDE.md` (not only your machine-local global config or project memory) — machine-local config does not reach cloud routines or other contributors.
+
 ## Branch-cadence + E2E-frequency rules (always active, all git projects)
 
 Keep downstream branches close. Run the right E2E at the right cost. Prefer many small merges over rare giant ones — bigger batches scale failure risk nonlinearly (DORA / Accelerate).
