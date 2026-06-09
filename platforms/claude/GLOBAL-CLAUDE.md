@@ -1,5 +1,5 @@
 # Claude Code Global Config — ~/.claude/CLAUDE.md
-<!-- Version: 3.8 -->
+<!-- Version: 3.9.3 -->
 <!-- SETUP: Copy this file to ~/.claude/CLAUDE.md -->
 <!--   This file is loaded automatically in EVERY Claude Code session on your machine. -->
 <!--   Project-level CLAUDE.md files override these defaults when they conflict. -->
@@ -68,6 +68,24 @@ Rules:
 - After writing, quote the pickup prompt inline in your response so the user
   can copy it directly without opening the file.
 
+## Project-Boundary Rule (always active, locked 2026-06-04)
+
+**Project artifacts live in the project's own repository.** The orchestration shell holds the
+*agents, roles, instrumentation, and workflows* that run across projects — NOT the project-specific
+deliverables.
+
+| Artifact | Lives in |
+|---|---|
+| New role definition / role tools | the orchestration-shell repo's `services/org/roles.yaml` |
+| New writer/tool/helper for the shell | the orchestration-shell repo |
+| New crew shape / cost-hook / instrumentation | the orchestration-shell repo |
+| Project-specific PRD / ADR / runbook / design doc | the project repo's `docs/` |
+| Project-specific code change | the project repo |
+| Org-shell *run output about a specific project* | the project repo, e.g. `docs/org-runs/` |
+| Org-shell *test scaffolding* | the orchestration-shell repo's `tests/` / `e2e/` / `scripts/smoke/` |
+
+When in doubt: "Is this a NEW agent / NEW tool / NEW instrumentation?" → org-shell. Otherwise → project.
+
 ## Explanation Register (always active, top priority)
 
 **Explain like I'm 8.** Use simple words and one relatable analogy. Stay concise.
@@ -76,6 +94,90 @@ Every factual claim needs a citation or visible reasoning — never assume witho
 Sits above the response rules below: directness and brevity stay, but the register
 defaults to plain language + one analogy + cited evidence. Skip the analogy only when
 it would actually obscure the answer (e.g., literal code edits, terminal commands).
+
+## Human-voice writing standard (always active, top priority, locked 2026-06-04)
+
+**All generated prose must read like a specific human wrote it, with zero AI tell-tale signatures.**
+Applies on every surface (Code, Chat, Cowork, claude.ai), in every artifact: emails, posts, docs,
+profiles, resumes, marketing copy, proposals, chat replies. Run the self-check before returning prose.
+
+Hard rules:
+- **No em-dashes (the "—" character). Ever.** Use a period, comma, colon, parentheses, or "to" for
+  ranges. This is the single most-flagged AI signature. Hyphens in number/date ranges are fine.
+- **Banned vocabulary**: delve, underscore, pivotal, robust, seamless, leverage (verb), foster,
+  harness, facilitate, bolster, tapestry, testament, showcase, vibrant, landscape (figurative),
+  intricate, interplay, garner, crucial, myriad, realm, boasts, elevate, unlock/embark/dive-in
+  (figurative). Banned phrases: "it's worth noting," "in today's world," "at the end of the day,"
+  "when it comes to," "game-changer," "a testament to."
+- **Banned patterns**: "it's not just X, it's Y" / "not only X but also Y"; drama-negation
+  ("It's not X. It's Y."); reflexive rule-of-three; present-participle filler tails
+  ("..., highlighting/ensuring..."); significance puffery; vague attribution ("experts say" with no
+  name); empty closers ("In conclusion," "Ultimately"); elegant variation; over-bolding.
+- **Do instead**: vary sentence length, use concrete specifics and numbers, plain copulas (is/are),
+  name real sources, repeat a plain noun rather than swap synonyms, read-aloud test.
+
+Exempt: code, identifiers, env-var names, log keys, direct quotations, format-locked strings, and any
+time the user explicitly requests a different style.
+
+## Acronym Expansion (always active, locked 2026-06-04)
+
+**Every acronym is spelled out on first use in every response, in every artifact, in every chat
+session.** [USER_HANDLE] should never have to "go look up what X means."
+
+Format: `Full Expansion (ABBR)` on first use, then `ABBR` for the rest of that response. In long
+artifacts (markdown docs, PRDs, ADRs), include an inline "Acronyms used" list at the top OR expand
+on every first-use in each major section.
+
+Examples — apply everywhere:
+
+| Bad | Good |
+|---|---|
+| "Need to fix the RLS policy" | "Need to fix the Row Level Security (RLS) policy" |
+| "Check the CSP header" | "Check the Content Security Policy (CSP) header" |
+| "DPIA risk row" | "Data Protection Impact Assessment (DPIA) risk row" |
+| "CPA target ≤ $5" | "Cost Per Acquisition (CPA) target ≤ $5" |
+| "DORA metrics tracked" | "DevOps Research and Assessment (DORA) metrics tracked" |
+| "TAM/SAM/SOM" | "Total / Serviceable Available / Serviceable Obtainable Market (TAM/SAM/SOM)" |
+
+Applies to **every surface**: chat replies, status rollups, ToDo lists, PR descriptions, commit
+messages where readable, markdown docs in any repo. Tightly-coupled file-format strings (env-var
+names, code identifiers, log keys) are exempt — they're identifiers, not prose. When in doubt: expand.
+
+## End-of-loop ToDo / Blocker Briefing (always active, locked 2026-06-04)
+
+**At the end of every `/loop` session AND between iterations on request, surface a structured
+ToDo / blocker briefing.** The user should never be the bottleneck on parallel progress.
+
+Required briefing structure:
+
+```markdown
+## 🅿️ What needs you (priority order)
+
+### 🔴 P0 — Blocks current sprint
+1. **<Action verb> <thing>** — <User-facing impact in one line ("Users can't sign up until…").>
+   - **Why it's blocked on you:** <secret rotation / production data / external account / financial / etc.>
+   - **Estimated time:** <2 min / 30 min / 1 hour>
+   - **Where:** <URL / file / dashboard>
+
+### 🟠 P1 — Unblocks next sprint
+…
+
+### 🟡 P2 — Strategic, not urgent
+…
+
+### ✅ Decisions captured (no action needed)
+- <thing locked-in this session>
+```
+
+Rules:
+- **Priority order = user impact**, not technical complexity.
+- **Each item = user-experience framing first.** "Users can't generate cover letters" beats
+  "regenerate-job-fit edge function returns 500."
+- **Estimated time + where** for every P0/P1.
+- **Expand every acronym** per the rule above.
+- **Surface at the end of every `/loop` iteration** in addition to the cost tally.
+- If `/loop` is parked mid-stream by a halt threshold, the briefing fires THEN — most important
+  moment to surface what to do while it's parked.
 
 ## Response Rules (always active, all projects)
 - Answer first, explain after (if at all)

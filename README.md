@@ -87,6 +87,10 @@ Then re-run `bash verify.sh` — the L3-global check confirms instruction files 
 
 Hourly pipeline auto-refreshes L2 + L3-global + L7 cost tally. See [`platforms/claude/scripts/cumulative-cost-launchagent.sh`](platforms/claude/scripts/cumulative-cost-launchagent.sh).
 
+## What's new in v3.9.3
+
+- **Human-voice writing standard** — new always-active, top-priority rule in `platforms/claude/GLOBAL-CLAUDE.md` and `core/OUTPUT_RULES.md`. All generated prose (emails, posts, docs, profiles, resumes, marketing copy, chat replies) must read like a specific human wrote it, with zero AI tell-tale signatures. The load-bearing rule: **no em-dashes (the "—" character), ever**, the single most-flagged AI signature. Plus a banned-vocabulary list (delve, robust, seamless, leverage, foster, tapestry, testament, and more), banned patterns ("it's not just X, it's Y," reflexive rule-of-three, participle filler tails, empty closers), and a "do instead" checklist (vary sentence length, concrete numbers, plain copulas, read-aloud test). Code, identifiers, log keys, direct quotations, and format-locked strings are exempt.
+
 ## What's new in v3.9.2
 
 - **Squash-merge-aware drift checker** — the branch-cadence "Drift thresholds" rule in `platforms/claude/GLOBAL-CLAUDE.md` now leads with a tree-equality query (`git diff --quiet origin/main..origin/develop`) instead of the SHA-count one-liner. After a squash-merge from a release branch into `main`, the SHA count keeps reporting the original commits as "ahead" forever — even when trees are byte-identical — producing a permanent phantom 🔴 RED. Tree-equality is the canonical "no drift" gate; SHA count is the fallback when trees actually differ.

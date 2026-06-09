@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LLM Cost Kit v3.9.1 — Guide</title>
+<title>LLM Cost Kit v3.9.3 — Guide</title>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
@@ -106,13 +106,13 @@
 <body>
 <div class="container">
 
-<h1>LLM Cost Kit v3.9.1</h1>
+<h1>LLM Cost Kit v3.9.3</h1>
 <p class="subtitle">40–70% cost reduction for Claude, ChatGPT, and Gemini — without quality loss.</p>
 
 <div class="toc">
 <h3>Contents</h3>
 <ul>
-<li><a href="#what-changed">What's new in v3.9.1</a></li>
+<li><a href="#what-changed">What's new in v3.9.3</a></li>
 <li><a href="#tool-use-hygiene">Tool-use hygiene</a></li>
 <li><a href="#hierarchy">The 7-layer hierarchy</a></li>
 <li><a href="#decision-tree">Decision tree — where should this rule go?</a></li>
@@ -126,7 +126,16 @@
 </ul>
 </div>
 
-<h2 id="what-changed">What's new in v3.9</h2>
+<h2 id="what-changed">What's new in v3.9.3</h2>
+
+<table>
+<thead><tr><th>Addition</th><th>Why it matters</th></tr></thead>
+<tbody>
+<tr><td><strong>Human-voice writing standard</strong></td><td>New always-active, top-priority rule in <code>platforms/claude/GLOBAL-CLAUDE.md</code> and <code>core/OUTPUT_RULES.md</code>. All generated prose (emails, posts, docs, profiles, resumes, marketing copy, chat replies) must read like a specific human wrote it, with zero AI tell-tale signatures. The load-bearing rule: <strong>no em-dashes (the "—" character), ever</strong>, the single most-flagged AI signature; use a period, comma, colon, parentheses, or "to" for ranges. Plus a banned-vocabulary list (delve, robust, seamless, leverage, foster, tapestry, testament, showcase, and more), banned patterns ("it's not just X, it's Y," reflexive rule-of-three, participle filler tails, empty closers), and a "do instead" checklist (vary sentence length, concrete numbers, plain copulas, name real sources, read-aloud test). Code, identifiers, log keys, direct quotations, and format-locked strings are exempt.</td></tr>
+</tbody>
+</table>
+
+<h2 id="what-changed-39">What's new in v3.9</h2>
 
 <table>
 <thead><tr><th>Addition</th><th>Why it matters</th></tr></thead>
