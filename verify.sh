@@ -88,9 +88,8 @@ sec "Hourly cost pipeline"
 # Plist may use any of these names depending on kit version / install path
 PLIST=""
 for cand in \
-    "$HOME/Library/LaunchAgents/com.kuntal.cumulative-cost.plist" \
     "$HOME/Library/LaunchAgents/cumulative-cost-launchagent.plist" \
-    "$HOME/Library/LaunchAgents/com.daskuntal.cumulative-cost.plist"; do
+    "$HOME/Library/LaunchAgents/com.${USER}.cumulative-cost.plist"; do
   [[ -f "$cand" ]] && { PLIST="$cand"; break; }
 done
 if [[ -n "$PLIST" ]]; then

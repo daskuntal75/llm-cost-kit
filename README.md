@@ -4,6 +4,11 @@
 
 A complete, layered architecture for managing instructions across all surfaces of an LLM workflow.
 
+> **Before you use this kit, replace the placeholders with your own details.** A few files
+> ship with `[YOUR_NAME]`, `[YOUR_EMAIL]`, `[YOUR_GITHUB]`, `[YOUR_TITLE]`, and `[YOUR_PRODUCT]`
+> placeholders (mainly in the sample Anthropic letter), and LaunchAgent labels use
+> `com.${USER}.*` or `com.YOURUSER.*`. Swap in your own values so nothing references the author.
+
 ## Download
 
 Pick the kit for your platform from [Releases](https://github.com/daskuntal75/llm-cost-kit/releases/latest):

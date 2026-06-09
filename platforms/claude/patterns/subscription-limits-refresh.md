@@ -12,7 +12,7 @@ locked: 2026-05-15
 # Why this matters
 
 - The Anthropic API does NOT expose individual-user session/weekly subscription limits. The only source of truth is the web UI at https://claude.ai/settings/usage.
-- The hourly LaunchAgent `com.kuntal.cumulative-cost.plist` refreshes `ccusage_mtd` and `throttle_hits_mtd`, but does NOT refresh `session_limit.percent_used` or `weekly_*.percent_used`. Those go stale silently.
+- The hourly LaunchAgent `com.YOURUSER.cumulative-cost.plist` refreshes `ccusage_mtd` and `throttle_hits_mtd`, but does NOT refresh `session_limit.percent_used` or `weekly_*.percent_used`. Those go stale silently.
 - Without a refresh prompt, the cost tally shows numbers that are weeks old → user trusts them → over-allocates → hits surprise throttles.
 
 # Triggering the prompt — at first cost-tally moment

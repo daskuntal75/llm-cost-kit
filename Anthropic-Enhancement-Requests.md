@@ -1,9 +1,10 @@
 # Enhancement Requests for Anthropic
 
-**From:** Kuntal Das, Director Product Management · daskuntal75@github
+<!-- Replace the [YOUR_*] placeholders below with your own details before using this letter. -->
+**From:** [YOUR_NAME], [YOUR_TITLE] · [YOUR_GITHUB]@github
 **Date:** April 28, 2026
 **Plan:** Max ($200/mo, 20x Pro)
-**Context:** Heavy daily user across Claude Chat, Cowork, Claude Code · Founder of CareerBound.ai (production app on Anthropic API) · Built and shared `llm-cost-kit` (Apache 2.0) — open-source toolkit deployed by other Claude users to manage instructions across surfaces
+**Context:** Heavy daily user across Claude Chat, Cowork, Claude Code · Founder of [YOUR_PRODUCT] (production app on Anthropic API) · Built and shared `llm-cost-kit` (Apache 2.0), an open-source toolkit deployed by other Claude users to manage instructions across surfaces
 
 ---
 
@@ -95,7 +96,7 @@ Claude users have at least seven distinct places to put instructions:
 
 ### Real-world impact
 
-Before I figured this out, my CareerBound.ai Cowork project had ~4,000 tokens of L1 reloading every turn. After moving universal rules to L2 and lean per-project rules to L1: ~130 tokens per turn. **96% reduction on per-turn project context overhead.** That's real money on retail API rates and real value on Max plan (more headroom before throttle).
+Before I figured this out, my [YOUR_PRODUCT] Cowork project had ~4,000 tokens of L1 reloading every turn. After moving universal rules to L2 and lean per-project rules to L1: ~130 tokens per turn. **96% reduction on per-turn project context overhead.** That's real money on retail API rates and real value on Max plan (more headroom before throttle).
 
 ### What's needed
 
@@ -127,7 +128,7 @@ I want to work on Anthropic's customer experience.
 
 **Background:**
 - 15 years building enterprise products. Director-level PM. Currently transitioning roles.
-- Founder of CareerBound.ai — production B2B SaaS, runs on Anthropic API.
+- Founder of [YOUR_PRODUCT], a production B2B SaaS that runs on Anthropic API.
 - Built and open-sourced `llm-cost-kit` (Apache 2.0) — a 4-platform toolkit that helps Claude users (and OpenAI/Gemini users) manage instructions efficiently. Includes a 7-layer hierarchy guide, three skills, an `update-claude-cost` CLI for tracking subscription value, and SVG diagrams + decision trees that other users have started embedding in their own setups.
 - I think about cost optimization and developer/user experience full-time.
 
@@ -140,7 +141,7 @@ I want to work on Anthropic's customer experience.
 
 **The simplest interview process:** look at `github.com/daskuntal75/llm-cost-kit` and the hierarchy guide it ships with. That's a sample of what I'd build for Anthropic.
 
-I'm `daskuntal75` on GitHub. Reach out: kuntal.das@careerbound.ai.
+I'm `[YOUR_GITHUB]` on GitHub. Reach out: [YOUR_EMAIL].
 
 ---
 
