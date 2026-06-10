@@ -61,7 +61,7 @@ When user picks ⭐ Refresh now:
      --set-weekly-sonnet <N> \
      --set-weekly-design <N> \
      --set-daily-routines <N> <M> \
-     --set-extra-usage off|on
+     --set-extra-usage off|on --set-credits-spent <X> --set-credits-limit <Y> --set-credits-balance <B>
    ```
 5. Confirm: *"Refreshed. Session N%, Weekly N/N/N%, Daily N/M, Extra off. Next prompt in 7 days unless I see a throttle event."*
 
@@ -79,7 +79,7 @@ Options:
    Don't ask this week — *why not*: only if already refreshed recently
 
 Refresh command (paste these values on Mac after copying from claude.ai/settings/usage):
-update-claude-cost --set-session <N> --set-weekly-all <N> --set-weekly-sonnet <N> --set-weekly-design <N> --set-daily-routines <N> <M> --set-extra-usage off|on
+update-claude-cost --set-session <N> --set-weekly-all <N> --set-weekly-sonnet <N> --set-weekly-design <N> --set-daily-routines <N> <M> --set-extra-usage off|on --set-credits-spent <X> --set-credits-limit <Y> --set-credits-balance <B>
 ```
 
 Then in this same response, re-emit the cost tally with fresh values once the user reports back.
