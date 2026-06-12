@@ -59,6 +59,16 @@ When two or more engineering concerns conflict, the higher-tier item wins. Locke
 
 Never compromise a higher tier for a lower one. If a perf/scale fix requires weakening a security or privacy control, redesign — don't compromise. Apply this in ALL projects, ALL agent sessions, ALL design decisions.
 
+## Backlog prioritization — RICE-first (always active)
+
+Every net-new backlog item is (1) deduped against the EXISTING backlog before filing
+(merge into the existing issue when overlap is real), and (2) RICE-scored (Reach/quarter,
+Impact 0.25-3, Confidence %, Effort person-days) AGAINST the pre-existing items so the
+whole queue re-ranks together. State RICE assumptions in the ranking artifact.
+Security/Privacy tier-1 items may override pure RICE rank (say so explicitly). Challenge
+[YOUR_NAME]'s stated priority when RICE disagrees, with the numbers, or ask clarifying
+questions. Near-zero-effort items (under ~30 min) may schedule as fillers.
+
 ## Test-coverage Definition of Done (always active — locked 2026-06-01)
 
 Every PR that adds or changes feature behavior lands with tests in the SAME PR — no "tests in a follow-up," no test theater (a mirror/stub that doesn't reflect real source is worse than no test).
