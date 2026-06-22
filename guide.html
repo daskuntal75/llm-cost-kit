@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LLM Cost Kit v3.9.3 — Guide</title>
+<title>LLM Cost Kit v3.9.4 — Guide</title>
 <style>
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
@@ -106,13 +106,13 @@
 <body>
 <div class="container">
 
-<h1>LLM Cost Kit v3.9.3</h1>
+<h1>LLM Cost Kit v3.9.4</h1>
 <p class="subtitle">40–70% cost reduction for Claude, ChatGPT, and Gemini — without quality loss.</p>
 
 <div class="toc">
 <h3>Contents</h3>
 <ul>
-<li><a href="#what-changed">What's new in v3.9.3</a></li>
+<li><a href="#what-changed">What's new in v3.9.4</a></li>
 <li><a href="#tool-use-hygiene">Tool-use hygiene</a></li>
 <li><a href="#hierarchy">The 7-layer hierarchy</a></li>
 <li><a href="#decision-tree">Decision tree — where should this rule go?</a></li>
@@ -126,7 +126,18 @@
 </ul>
 </div>
 
-<h2 id="what-changed">What's new in v3.9.3</h2>
+<h2 id="what-changed">What's new in v3.9.4</h2>
+
+<table>
+<thead><tr><th>Addition</th><th>Why it matters</th></tr></thead>
+<tbody>
+<tr><td><strong>Setup scripts are zsh-safe under <code>bash</code></strong></td><td><code>setup.sh</code>, <code>verify.sh</code>, and <code>bootstrap-macos.sh</code> now re-exec under zsh if started with <code>bash</code> (e.g. <code>bash setup.sh</code>). They use the zsh-only <code>read -k</code> builtin, which crashes bash around line 179 and silently skips the cumulative-cost install. All usage comments, cross-references, and this guide's run instructions now say <code>zsh &lt;script&gt;</code>.</td></tr>
+<tr><td><strong>Homebrew ownership check (restricted users)</strong></td><td><code>bootstrap-macos.sh</code> detects a non-writable <code>/opt/homebrew</code> and tells an admin to run <code>sudo chown -R &lt;user&gt; /opt/homebrew</code> once. Never <code>sudo brew</code>.</td></tr>
+<tr><td><strong>claude-code cask vs npm collision</strong></td><td>When <code>claude-code</code> is a Homebrew cask, <code>npm i -g @anthropic-ai/claude-code</code> errors <code>EEXIST</code> on <code>/opt/homebrew/bin/claude</code>. Both installers now detect a brew-managed <code>claude</code>, skip the npm install, and point to <code>brew upgrade --cask claude-code</code>.</td></tr>
+</tbody>
+</table>
+
+<h2 id="what-changed-393">What's new in v3.9.3</h2>
 
 <table>
 <thead><tr><th>Addition</th><th>Why it matters</th></tr></thead>
@@ -343,28 +354,28 @@
 cd llm-cost-kit
 
 # 1. Pre-flight: brew, node, jq, fswatch, gh, Claude Desktop, gh auth login.
-bash bootstrap-macos.sh
+zsh bootstrap-macos.sh
 
 # 2. One-time Anthropic OAuth (browser opens automatically).
 claude
 
 # 3. Main setup: Claude Code CLI, ccusage, MCP configs, aliases, skills, cost LaunchAgent.
-bash setup.sh
+zsh setup.sh
 source ~/.zshrc
 
 # 4. Initialize your cost state.
 update-claude-cost --plan YOUR_PLAN --fee YOUR_MONTHLY_FEE --renews YYYY-MM-DD
 
 # 5. Verify everything: green/red dashboard.
-bash verify.sh</code></pre>
+zsh verify.sh</code></pre>
 
 <h3>Already-working Mac — ~10 minutes</h3>
 
 <pre><code># Skip step 1; the bootstrap is only needed for fresh installs.
 cd llm-cost-kit
-bash setup.sh
+zsh setup.sh
 source ~/.zshrc
-bash verify.sh</code></pre>
+zsh verify.sh</code></pre>
 
 <h3>After the scripts — manual web-UI steps (~20 min, cannot be scripted)</h3>
 
@@ -380,7 +391,7 @@ bash verify.sh</code></pre>
 </tbody>
 </table>
 
-<p>Then re-run <code>bash verify.sh</code> — the L3-global check confirms instruction files landed.</p>
+<p>Then re-run <code>zsh verify.sh</code> — the L3-global check confirms instruction files landed.</p>
 
 <h3>Heads-up</h3>
 

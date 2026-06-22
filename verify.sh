@@ -1,11 +1,14 @@
 #!/bin/zsh
 # =============================================================================
-# LLM Cost Kit v3.9.1 — Post-Setup Verification
-# Usage: bash verify.sh
+# LLM Cost Kit v3.9.4 — Post-Setup Verification
+# Usage: zsh verify.sh   (or ./verify.sh). NOT bash (uses zsh-only builtins).
 #
 # Run this AFTER bootstrap-macos.sh + setup.sh + first-run auth to confirm
 # everything is wired correctly. Prints a green/red dashboard. Non-destructive.
 # =============================================================================
+
+# Re-exec under zsh if invoked via `bash verify.sh`.
+if [ -z "${ZSH_VERSION:-}" ]; then exec zsh "$0" "$@"; fi
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BLUE='\033[0;34m'; NC='\033[0m'
 PASS=0; FAIL=0; WARN_COUNT=0
@@ -20,7 +23,7 @@ sec()  { printf "\n${BLUE}━━ %s ━━${NC}\n" "$1"; }
 
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║   LLM Cost Kit v3.9.1 — Verification Dashboard       ║"
+echo "║   LLM Cost Kit v3.9.4 — Verification Dashboard       ║"
 echo "╚══════════════════════════════════════════════════════╝"
 
 # ── Prereqs ──────────────────────────────────────────────────────────────────

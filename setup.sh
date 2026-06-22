@@ -1,9 +1,14 @@
 #!/bin/zsh
 # =============================================================================
 # LLM Cost Kit v3.2 — Setup
-# Usage: bash setup.sh
+# Usage: zsh setup.sh   (or ./setup.sh)
+# Do NOT run as `bash setup.sh`. This script uses the zsh-only `read -k` builtin,
+# which crashes under bash (~line 179). The guard below re-execs under zsh anyway.
 # Idempotent — safe to re-run.
 # =============================================================================
+
+# Re-exec under zsh if invoked via `bash setup.sh` (zsh-only `read -k` would crash).
+if [ -z "${ZSH_VERSION:-}" ]; then exec zsh "$0" "$@"; fi
 
 set -e
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -15,7 +20,7 @@ info() { printf "${BLUE}  →${NC} %s\n" "$1"; }
 
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║   LLM Cost Kit v3.9.1 — Setup                        ║"
+echo "║   LLM Cost Kit v3.9.4 — Setup                        ║"
 echo "║   (Claude Chat + Cowork + Code)                      ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""
@@ -29,7 +34,7 @@ for tool in node npm jq; do
 done
 if (( ${#MISSING[@]} > 0 )); then
   warn "Missing prerequisites: ${MISSING[*]}"
-  warn "On a fresh Mac, run first:  bash bootstrap-macos.sh"
+  warn "On a fresh Mac, run first:  zsh bootstrap-macos.sh"
   echo ""
 fi
 
@@ -73,10 +78,17 @@ fi
 # ── Claude / All kit: install Claude Code, ccusage, MCP configs ──────────────
 
 # Claude Code
+# NOTE: if claude-code was installed via Homebrew cask (`brew install --cask claude-code`),
+# do NOT `npm i -g @anthropic-ai/claude-code`: it errors EEXIST on /opt/homebrew/bin/claude.
+# When brew-managed, upgrade with `brew upgrade --cask claude-code` instead.
 if command -v claude &>/dev/null; then
-  ok "Claude Code installed: $(claude --version 2>/dev/null | head -1)"
+  if brew list --cask claude-code &>/dev/null 2>&1; then
+    ok "Claude Code via Homebrew cask: $(claude --version 2>/dev/null | head -1) (upgrade: brew upgrade --cask claude-code)"
+  else
+    ok "Claude Code installed: $(claude --version 2>/dev/null | head -1)"
+  fi
 else
-  info "Installing Claude Code..."
+  info "Installing Claude Code (npm)..."
   npm install -g @anthropic-ai/claude-code
   ok "Claude Code installed"
 fi
@@ -248,7 +260,7 @@ echo "  MCP Connectors — https://claude.ai/settings/connectors"
 echo "    → Re-auth on each new machine: Gmail, Drive, Calendar,"
 echo "      Granola, Gamma, Stripe, Supabase (any you previously had)."
 echo ""
-echo "Verify everything end-to-end:  bash verify.sh"
+echo "Verify everything end-to-end:  zsh verify.sh"
 
 # ── Cumulative cost tracking (v3.3) ─────────────────────────────────────────
 echo ""

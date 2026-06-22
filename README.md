@@ -92,6 +92,12 @@ Then re-run `bash verify.sh` — the L3-global check confirms instruction files 
 
 Hourly pipeline auto-refreshes L2 + L3-global + L7 cost tally. See [`platforms/claude/scripts/cumulative-cost-launchagent.sh`](platforms/claude/scripts/cumulative-cost-launchagent.sh).
 
+## What's new in v3.9.4
+
+- **Setup scripts are zsh-safe even when invoked as `bash`.** `setup.sh`, `verify.sh`, and `bootstrap-macos.sh` now re-exec under zsh if started with `bash` (e.g. `bash setup.sh`). They use the zsh-only `read -k` builtin, which crashes bash around line 179 and silently skips the cumulative-cost install. All usage comments, cross-references, and `guide.html` run instructions now say `zsh <script>`.
+- **Homebrew ownership check for restricted (non-admin) users.** `bootstrap-macos.sh` detects a non-writable `/opt/homebrew` and tells an admin to run `sudo chown -R <user> /opt/homebrew` once. Never `sudo brew`.
+- **claude-code cask vs npm collision handled.** When `claude-code` is installed as a Homebrew cask, `npm i -g @anthropic-ai/claude-code` errors `EEXIST` on `/opt/homebrew/bin/claude`. Both installers now detect a brew-managed `claude`, skip the npm install, and point to `brew upgrade --cask claude-code`.
+
 ## What's new in v3.9.3
 
 - **Human-voice writing standard** — new always-active, top-priority rule in `platforms/claude/GLOBAL-CLAUDE.md` and `core/OUTPUT_RULES.md`. All generated prose (emails, posts, docs, profiles, resumes, marketing copy, chat replies) must read like a specific human wrote it, with zero AI tell-tale signatures. The load-bearing rule: **no em-dashes (the "—" character), ever**, the single most-flagged AI signature. Plus a banned-vocabulary list (delve, robust, seamless, leverage, foster, tapestry, testament, and more), banned patterns ("it's not just X, it's Y," reflexive rule-of-three, participle filler tails, empty closers), and a "do instead" checklist (vary sentence length, concrete numbers, plain copulas, read-aloud test). Code, identifiers, log keys, direct quotations, and format-locked strings are exempt.

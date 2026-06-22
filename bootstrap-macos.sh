@@ -1,7 +1,7 @@
 #!/bin/zsh
 # =============================================================================
-# LLM Cost Kit v3.9.1 — macOS Pre-flight Bootstrap
-# Usage: bash bootstrap-macos.sh
+# LLM Cost Kit v3.9.4 — macOS Pre-flight Bootstrap
+# Usage: zsh bootstrap-macos.sh   (or ./bootstrap-macos.sh). NOT bash (zsh-only read -k).
 #
 # Run this FIRST on a fresh Mac (or Mac Mini) before setup.sh.
 # Installs the prerequisites that setup.sh assumes already exist:
@@ -17,6 +17,9 @@
 # Idempotent — safe to re-run.
 # =============================================================================
 
+# Re-exec under zsh if invoked via `bash bootstrap-macos.sh` (zsh-only `read -k`).
+if [ -z "${ZSH_VERSION:-}" ]; then exec zsh "$0" "$@"; fi
+
 set -e
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; RED='\033[0;31m'; NC='\033[0m'
@@ -27,7 +30,7 @@ err()  { printf "${RED}  ✗${NC} %s\n" "$1"; }
 
 echo ""
 echo "╔══════════════════════════════════════════════════════╗"
-echo "║   LLM Cost Kit v3.9.1 — macOS Pre-flight Bootstrap   ║"
+echo "║   LLM Cost Kit v3.9.4 — macOS Pre-flight Bootstrap   ║"
 echo "║   Run this BEFORE setup.sh on a fresh Mac.           ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo ""
@@ -70,6 +73,15 @@ else
   ok "Homebrew installed"
 fi
 
+# ── Homebrew ownership for restricted (non-admin) users ─────────────────────
+# On a restricted account, /opt/homebrew may be owned by an admin, so `brew
+# install` fails with permission errors. An ADMIN runs this ONCE (never sudo brew):
+#   sudo chown -R $(whoami) /opt/homebrew
+if [[ -d /opt/homebrew && ! -w /opt/homebrew/bin ]]; then
+  warn "/opt/homebrew is not writable by $(whoami); brew installs will fail."
+  warn "An admin must run ONCE:  sudo chown -R $(whoami) /opt/homebrew  (never 'sudo brew')."
+fi
+
 # ── Core CLI tools via brew ─────────────────────────────────────────────────
 brew_install_if_missing() {
   local pkg="$1"
@@ -105,11 +117,18 @@ else
   fi
 fi
 
-# ── Claude Code CLI (npm global) ────────────────────────────────────────────
+# ── Claude Code CLI (npm global, unless brew-managed) ───────────────────────
+# If claude-code is a Homebrew cask (`brew install --cask claude-code`), do NOT
+# `npm i -g @anthropic-ai/claude-code`: it errors EEXIST on /opt/homebrew/bin/claude.
+# Upgrade brew-managed installs with `brew upgrade --cask claude-code` instead.
 if command -v claude &>/dev/null; then
-  ok "Claude Code CLI installed: $(claude --version 2>/dev/null | head -1)"
+  if brew list --cask claude-code &>/dev/null 2>&1; then
+    ok "Claude Code CLI via Homebrew cask: $(claude --version 2>/dev/null | head -1) (upgrade: brew upgrade --cask claude-code)"
+  else
+    ok "Claude Code CLI installed: $(claude --version 2>/dev/null | head -1)"
+  fi
 else
-  info "Installing Claude Code CLI..."
+  info "Installing Claude Code CLI (npm)..."
   npm install -g @anthropic-ai/claude-code
   ok "Claude Code CLI installed"
 fi
@@ -147,5 +166,5 @@ echo "  3. (Optional) Re-auth your MCP connectors at:"
 echo "       https://claude.ai/settings/connectors"
 echo "       Common: Gmail, Drive, Calendar, Granola, Gamma, Stripe, Supabase."
 echo ""
-echo "Then continue with:  bash setup.sh"
+echo "Then continue with:  zsh setup.sh"
 echo ""
