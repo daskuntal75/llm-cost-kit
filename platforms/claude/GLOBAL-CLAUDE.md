@@ -435,6 +435,14 @@ Rules:
 - **Each item = user-experience framing first.** "Users can't generate cover letters" beats
   "regenerate-job-fit edge function returns 500."
 - **Estimated time + where** for every P0/P1. I should be able to fix-and-move in one work session.
+- **Step-by-step, never a bare ask.** Every action for [YOUR_NAME] gets explicit click-by-click
+  instructions: the exact URL, the button/menu labels, what to type or paste, each value's meaning,
+  and what success looks like when done. Lead with whether the action is even **required now**
+  (required-now / optional / can-wait) + one-line why. **CLI-first:** when the action can be done from
+  the terminal, give exact copy-paste CLI commands (`gh`, `git`, `curl`, etc.) with values filled in;
+  fetch any needed value rather than making them hunt. The web-UI click path is the fallback, for steps
+  with no CLI. NEVER assume [YOUR_NAME] knows the mechanics (how to tag a release, add a CI secret, run
+  a git command). A one-liner like "tag the release" or "provision the secret" is NOT actionable.
 - **Expand every acronym** per the rule above. Even in a hurry.
 - **Surface at the end of every `/loop` iteration** in addition to the cost tally — not just the
   final session. I want to parallel-progress between iterations.
